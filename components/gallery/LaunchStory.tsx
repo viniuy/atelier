@@ -121,6 +121,8 @@ const PB = { x: 3.7, y: 0.4 };
 // ── Timing helpers ────────────────────────────────────────────────────
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const smooth = (t: number) => t * t * (3 - 2 * t);
+/** Gentle ease-in-out (sine): the softest start and finish. */
+const sine = (t: number) => (1 - Math.cos(Math.PI * t)) / 2;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const span = (v: number, a: number, b: number) => clamp01((v - a) / (b - a));
 /**
@@ -162,7 +164,7 @@ const LIFTOFF = [0.83, 0.965];
 /** Rocket lift (scene px, negative is up): a slow, heavy start, then speed. */
 const lift = (v: number) => -2200 * span(v, LIFTOFF[0], LIFTOFF[1]) ** 2.6;
 /** Rumble on the pad, fading once it's flying. */
-const shake = (v: number) => 5 * smooth(span(v, 0.8, 0.83)) * (1 - smooth(span(v, 0.85, 0.89)));
+const shake = (v: number) => 2.5 * smooth(span(v, 0.8, 0.83)) * (1 - smooth(span(v, 0.85, 0.89)));
 
 /** Camera: focus point in scene coordinates and zoom. */
 function camera(v: number) {
@@ -236,7 +238,7 @@ const WHEEL_STEP = 90;
 const HEAD = ["Cool rooms,", "honest prices."];
 
 function useP(p: MotionValue<number>, input: number[], output: number[]) {
-  return useTransform(p, input, output, { clamp: true });
+  return useTransform(p, input, output, { clamp: true, ease: sine });
 }
 
 type SiteState = {
@@ -256,9 +258,9 @@ type SiteState = {
 function useSite(p: MotionValue<number>): SiteState {
   const total = HEAD[0].length + HEAD[1].length;
   const typed = useTransform(p, (v) => Math.round(span(v, ...B.typing) * total));
-  const c0 = useTransform(p, (v) => span(v, B.cards[0], B.cards[0] + 0.015));
-  const c1 = useTransform(p, (v) => span(v, B.cards[0] + 0.005, B.cards[0] + 0.02));
-  const c2 = useTransform(p, (v) => span(v, B.cards[0] + 0.01, B.cards[1]));
+  const c0 = useTransform(p, (v) => sine(span(v, B.cards[0], B.cards[0] + 0.015)));
+  const c1 = useTransform(p, (v) => sine(span(v, B.cards[0] + 0.005, B.cards[0] + 0.02)));
+  const c2 = useTransform(p, (v) => sine(span(v, B.cards[0] + 0.01, B.cards[1])));
   const logo = useP(p, B.logo, [0, 1]);
   const cta = useP(p, B.cta, [0, 1]);
   return {
@@ -578,14 +580,14 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
       }
       busy = true;
       queued = 0;
-      // The launch gets time to breathe; other steps glide in and settle
-      // with a long, soft finish.
+      // The launch gets time to breathe; every other step glides in and out
+      // on a sine curve: no sudden start, no sudden stop.
       const launch = i === last && to > p.get();
-      duration = launch ? 4.6 : Math.min(1.7, Math.max(0.8, Math.abs(to - p.get()) * 6));
+      duration = launch ? 5.4 : Math.min(2.2, Math.max(1.3, Math.abs(to - p.get()) * 9));
       startedAt = performance.now();
       anim = animate(p, to, {
         duration,
-        ease: launch ? [0.3, 0, 0.5, 1] : [0.4, 0, 0.1, 1],
+        ease: launch ? [0.33, 0, 0.55, 1] : [0.37, 0, 0.63, 1],
         onComplete: () => {
           busy = false;
           acc = 0;
@@ -708,7 +710,7 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
 
   // ── Act 2: full-size site, edited live ───────────────────────────────
   const site = useSite(p);
-  const overlayO = useTransform(p, (v) => span(v, ...B.overlayIn) * (1 - span(v, ...B.overlayOut)));
+  const overlayO = useTransform(p, (v) => sine(span(v, ...B.overlayIn)) * (1 - sine(span(v, ...B.overlayOut))));
   const overlayT = useTransform([p, sw, sh], ([pv, wv, hv]) => {
     const v = Number(pv);
     const W = Number(wv);
