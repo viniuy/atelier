@@ -37,19 +37,68 @@ export function Services({ c }: { c: ShowroomContent }) {
 
 export function Banner({ c, image }: { c: ShowroomContent; image: ImageSlot }) {
   return (
-    <section className="relative overflow-hidden bg-(--c-night) text-white" aria-labelledby="sr-banner">
-      <div className="relative aspect-[4/3] md:aspect-[24/11] md:max-h-[720px] md:w-full">
-        <SlotImage image={image} sizes="100vw" className="absolute inset-0 size-full object-cover" />
+    <section className="px-0 py-6 md:px-6" aria-labelledby="sr-banner">
+      <div className="mx-auto grid max-w-[1392px] overflow-hidden bg-(--c-night) text-white md:grid-cols-2 md:rounded-[28px]">
+        <div className="flex flex-col justify-center px-6 py-14 md:px-16 md:py-20">
+          <h2 id="sr-banner" className={`${D} text-[clamp(2.2rem,4.5vw,3.75rem)] leading-[1.04] font-bold tracking-[-0.02em]`}>
+            {c.banner.title}
+          </h2>
+          <p className="mt-5 max-w-md text-[1.1rem] leading-relaxed text-white/80">{c.banner.body}</p>
+          <div className="mt-9">
+            <a
+              href="#packages"
+              className="inline-flex items-center justify-center rounded-full border border-white px-6 py-2.5 text-[14px] font-bold transition-colors hover:bg-white hover:text-(--c-black)"
+            >
+              {c.banner.cta}
+            </a>
+          </div>
+        </div>
+        <div className="relative aspect-[14/11] md:aspect-auto md:min-h-[480px]">
+          <SlotImage image={image} sizes="(min-width: 768px) 50vw, 100vw" className="absolute inset-0 size-full object-cover" />
+        </div>
       </div>
-      <div className="px-6 py-12 md:absolute md:inset-y-0 md:left-0 md:flex md:w-1/2 md:flex-col md:justify-center md:px-[max(1.5rem,calc((100vw-1392px)/2))] md:py-0">
-        <h2 id="sr-banner" className={`${D} text-[2.4rem] leading-[1.05] font-bold tracking-[-0.02em] md:text-[3.6rem]`}>
-          {c.banner.title}
-        </h2>
-        <p className="mt-4 max-w-md text-[1.1rem] text-white/85">{c.banner.body}</p>
-        <div className="mt-8">
-          <a href="#packages" className="inline-flex items-center justify-center rounded-full border border-white px-6 py-2.5 text-[14px] font-bold transition-colors hover:bg-white hover:text-(--c-black)">
-            {c.banner.cta}
+    </section>
+  );
+}
+
+export function Sizing({ c }: { c: ShowroomContent }) {
+  return (
+    <section className="py-20" aria-labelledby="sr-sizing">
+      <div className={`${wrap} grid gap-10 lg:grid-cols-[1fr_2fr]`}>
+        <div>
+          <h2 id="sr-sizing" className={h2}>
+            Find the right size
+          </h2>
+          <p className="mt-4 max-w-sm text-[1rem] leading-relaxed text-(--c-ink)">
+            Too small and it runs all day; too big and it wastes power. Start here, and we&rsquo;ll confirm on a free
+            site visit.
+          </p>
+          <a href="#book" className={`${textLink} mt-8 inline-block`}>
+            Book a free site visit
           </a>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[34rem] text-left">
+            <caption className="sr-only">Recommended aircon capacity by room size</caption>
+            <thead>
+              <tr className="border-b border-(--c-black) text-[0.85rem] text-(--c-gray)">
+                <th scope="col" className="py-3 pr-4 font-normal">Room</th>
+                <th scope="col" className="py-3 pr-4 font-normal">Floor area</th>
+                <th scope="col" className="py-3 pr-4 font-normal">Capacity</th>
+                <th scope="col" className="py-3 font-normal">We&rsquo;d pick</th>
+              </tr>
+            </thead>
+            <tbody>
+              {c.sizing.map((r) => (
+                <tr key={r.room} className="border-b border-(--c-line)">
+                  <th scope="row" className="py-5 pr-4 font-bold">{r.room}</th>
+                  <td className="py-5 pr-4 text-(--c-ink) tabular-nums">{r.area}</td>
+                  <td className={`${D} py-5 pr-4 text-[1.1rem] font-semibold tabular-nums`}>{r.hp}</td>
+                  <td className="py-5 text-(--c-ink)">{r.pick}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </section>

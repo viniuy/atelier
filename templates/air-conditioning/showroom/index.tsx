@@ -4,9 +4,9 @@ import { contactLinks } from "../_shared/links";
 import content from "./content";
 import meta from "./meta";
 import { body, display } from "./fonts";
-import { Header, Hero, UnitTiles } from "./sections/Top";
+import { Header, Hero, Highlights, UnitTiles } from "./sections/Top";
 import { Shelf } from "./sections/Shelf";
-import { Banner, BrandsLine, Coverage, Faq, Packages, Reviews, Services, Steps } from "./sections/Body";
+import { Banner, BrandsLine, Coverage, Faq, Packages, Reviews, Services, Sizing, Steps } from "./sections/Body";
 import { Booking } from "./sections/Booking";
 import { FinalCta, Footer } from "./sections/Footer";
 
@@ -23,10 +23,12 @@ export default function Showroom() {
       <Header c={c} tel={links.tel} />
       <main>
         <Hero c={c} image={images.hero} />
+        <Highlights c={c} />
         <UnitTiles c={c} images={images} />
-        <Services c={c} />
-        <Banner c={c} image={images.banner} />
         <Shelf c={c} images={images} />
+        <Sizing c={c} />
+        <Banner c={c} image={images.banner} />
+        <Services c={c} />
         <Packages c={c} />
         <Steps c={c} />
         <BrandsLine c={c} />

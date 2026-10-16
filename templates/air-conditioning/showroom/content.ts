@@ -9,6 +9,10 @@ export type ShowroomContent = ACContent & {
   unitTypes: { type: UnitType; name: string }[];
   products: { name: string; type: UnitType; price: number; was?: number; note: string }[];
   disclaimers: string[];
+  /** Short selling points shown in a strip under the hero */
+  highlights: { title: string; body: string }[];
+  /** Room size → horsepower guide */
+  sizing: { room: string; area: string; hp: string; pick: string }[];
 };
 
 /**
@@ -153,6 +157,19 @@ const content: ShowroomContent = {
     headline: "Not sure which unit fits your room?",
     subheadline: "Send us the room size and we'll recommend the right horsepower, free.",
   },
+  highlights: [
+    { title: "Inverter savings", body: "Up to 60% lower power use*" },
+    { title: "Own installers", body: "Licensed team, not subcontractors" },
+    { title: "Same-week install", body: "Across Quezon City and nearby" },
+    { title: "1-year workmanship", body: "On top of the brand warranty" },
+  ],
+  sizing: [
+    { room: "Small bedroom", area: "Up to 12 m²", hp: "0.75 – 1.0 HP", pick: "Window type inverter" },
+    { room: "Master bedroom", area: "13 – 18 m²", hp: "1.0 – 1.5 HP", pick: "Split type inverter" },
+    { room: "Living room", area: "19 – 28 m²", hp: "1.5 – 2.0 HP", pick: "Split type inverter" },
+    { room: "Open-plan / office", area: "29 – 40 m²", hp: "2.5 – 3.0 HP", pick: "Floor mounted" },
+    { room: "Shop / restaurant", area: "40 m² and up", hp: "3.0 TR and up", pick: "Ceiling cassette" },
+  ],
   disclaimers: [
     "*Energy savings compared with a non-inverter unit of the same capacity under typical use. Actual savings vary.",
     "*Sale prices valid while stocks last. Images are for illustration only.",

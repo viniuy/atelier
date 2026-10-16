@@ -36,7 +36,8 @@ const meta = {
   ],
   features: [
     "Utility bar plus sticky header with click-to-call",
-    "Full-bleed campaign hero with pill buttons",
+    "Centered launch-style hero over a wide product image",
+    "Selling-point strip and room-size guide",
     "Grey product-category tiles",
     "Recommended-units shelf with sale prices and scroll progress",
     "Service tiles, packages and a dark promo banner",
@@ -52,17 +53,17 @@ const meta = {
       src: `${dir}/hero.jpg`,
       alt: "A slim white inverter split-type aircon above a sofa in a bright living room",
       width: 2400,
-      height: 1200,
+      height: 1000,
       prompt:
-        "Minimal bright Filipino condo living room, slim matte white wall-mounted inverter split-type air conditioner above a light grey sofa, the unit and sofa on the left half, right half is clean pale wall for headline text, soft morning daylight, premium electronics brand campaign photography, 2:1",
+        "Wide minimal bright Filipino condo living room, slim matte white wall-mounted inverter split-type air conditioner centered above a light grey sofa, clean pale walls, soft morning daylight, premium electronics brand campaign photography, centered composition, 12:5",
     },
     banner: {
       src: `${dir}/banner.jpg`,
       alt: "Technician mounting an outdoor aircon unit at dusk",
-      width: 2400,
+      width: 1400,
       height: 1100,
       prompt:
-        "Dramatic deep navy blue dusk scene, a single modern outdoor aircon condenser unit lit by a soft top spotlight, technician's gloved hands tightening a valve, subject on the right half, left half dark for white headline text, cinematic premium brand campaign photography, 24:11",
+        "Dramatic deep navy blue dusk scene, a single modern outdoor aircon condenser unit lit by a soft top spotlight, technician's gloved hands tightening a valve, cinematic premium brand campaign photography, 14:11",
     },
     window: product("window", "Window-type inverter aircon", "Modern white window-type inverter air conditioner, front three-quarter view"),
     split: product("split", "Split-type inverter aircon indoor unit", "Slim white wall-mounted split-type inverter air conditioner indoor unit, front view"),

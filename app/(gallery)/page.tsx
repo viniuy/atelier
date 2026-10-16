@@ -55,28 +55,34 @@ export default function HomePage() {
       </section>
 
       <section aria-labelledby="library-title" className="border-t border-line">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-20 pb-6 sm:px-6 md:grid-cols-[1fr_auto]">
-          <div className="max-w-xl">
-            <h2 id="library-title" className="text-[clamp(1.9rem,4vw,2.75rem)] leading-[1.08] font-semibold tracking-[-0.035em] text-balance">
-              Show a client their website before you build it.
-            </h2>
-            <p className="mt-5 text-[17px] leading-relaxed text-muted">
+        <div className="mx-auto max-w-6xl px-4 py-28 sm:px-6 md:py-40">
+          <h2
+            id="library-title"
+            className="max-w-5xl text-[clamp(2.75rem,7.4vw,6.5rem)] leading-[0.98] font-semibold tracking-[-0.045em] text-balance"
+          >
+            Show a client their{" "}
+            <span data-morph="word" className="transition-colors duration-500">
+              website
+            </span>{" "}
+            before you build it.
+          </h2>
+          <div className="mt-14 grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
+            <p className="max-w-xl text-[19px] leading-relaxed text-muted">
               Complete website templates for local businesses, sorted by industry. Open one, click around as if it were
               live, and when a client says &ldquo;that one&rdquo;, we build their site on it.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+            <div className="flex flex-wrap items-center gap-x-7 gap-y-4">
               <Link
                 href="#templates"
-                className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
+                className="inline-flex items-center gap-2 rounded-md bg-ink px-6 py-3.5 text-[16px] font-medium text-paper transition-colors hover:bg-ink-2"
               >
                 Browse templates <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
-              <Link href="#process" className="text-[15px] underline decoration-line-strong underline-offset-4 hover:decoration-ink">
+              <Link href="#process" className="text-[16px] underline decoration-line-strong underline-offset-4 hover:decoration-ink">
                 How it works
               </Link>
             </div>
           </div>
-          <div data-morph="browser" aria-hidden="true" className="hidden h-[200px] w-[320px] md:block" />
         </div>
       </section>
 

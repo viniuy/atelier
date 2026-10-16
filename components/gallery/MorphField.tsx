@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
  * to right, with a scatter cloud) and reform as the next shape; the morph is
  * scrubbed by scroll position, so scrolling back reverses it.
  *
- *   data-morph="word"      the element's own text (it is hidden once drawn)
+ *   data-morph="word"      the element's own text (hidden while the particles sit on it)
  *   data-morph="browser" | "globe" | "grid" | "steps"
  *   data-morph-color="#1a1a19"   particle color at this anchor
  *   data-morph-size="2.4"        particle size (CSS px) at this anchor
@@ -254,7 +254,23 @@ export function MorphField() {
     let raf = 0;
     let dpr = 1;
     const pointer = { x: -9999, y: -9999 };
-    const hidden: HTMLElement[] = [];
+    // Word anchors whose real text is currently hidden behind particles.
+    const hidden = new Set<HTMLElement>();
+    /**
+     * The real text stays in the DOM for screen readers and search. It's
+     * hidden only while the particles are sitting on it, and fades back in
+     * as soon as they leave, so a sentence never reads with a gap.
+     */
+    function syncWords(covered: number) {
+      anchors.forEach((a, j) => {
+        if (a.shape !== "word") return;
+        const hide = j === covered;
+        if (hide === hidden.has(a.el)) return;
+        a.el.style.color = hide ? "transparent" : "";
+        if (hide) hidden.add(a.el);
+        else hidden.delete(a.el);
+      });
+    }
 
     function resize() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -284,14 +300,6 @@ export function MorphField() {
         })
         .filter((a): a is Anchor => !!a && a.points.length > 0);
 
-      // The real text stays in the DOM for screen readers and search; hide
-      // it visually only once the particle version is drawn.
-      for (const a of anchors) {
-        if (a.shape === "word" && !hidden.includes(a.el)) {
-          a.el.style.color = "transparent";
-          hidden.push(a.el);
-        }
-      }
       ready = anchors.length > 0;
     }
 
@@ -322,6 +330,7 @@ export function MorphField() {
 
       const A = anchors[from];
       const B = anchors[to];
+      syncWords(t < 0.5 ? from : to);
       const ra = rects[from];
       const rb = rects[to];
       const col = A.color.map((c, i) => Math.round(c + (B.color[i] - c) * smooth(t)));
