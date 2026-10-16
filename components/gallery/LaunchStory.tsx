@@ -123,17 +123,46 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const span = (v: number, a: number, b: number) => clamp01((v - a) / (b - a));
-/** Piecewise interpolation through keyframes, eased within each segment. */
+/**
+ * A smooth curve through keyframes (monotone cubic): velocity carries
+ * through each keyframe instead of stopping, holds stay perfectly still,
+ * and it never overshoots.
+ */
 function keys(v: number, at: number[], vals: number[]) {
+  const n = at.length;
   if (v <= at[0]) return vals[0];
-  for (let i = 1; i < at.length; i++) {
-    if (v <= at[i]) return lerp(vals[i - 1], vals[i], smooth((v - at[i - 1]) / (at[i] - at[i - 1])));
-  }
-  return vals[vals.length - 1];
+  if (v >= at[n - 1]) return vals[n - 1];
+  let i = 0;
+  while (v > at[i + 1]) i++;
+  const slope = (j: number) => (vals[j + 1] - vals[j]) / (at[j + 1] - at[j]);
+  const tangent = (j: number) => {
+    if (j === 0 || j === n - 1) return 0;
+    const a = slope(j - 1);
+    const b = slope(j);
+    return a * b <= 0 ? 0 : (2 * a * b) / (a + b);
+  };
+  const h = at[i + 1] - at[i];
+  const t = (v - at[i]) / h;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (
+    (2 * t3 - 3 * t2 + 1) * vals[i] +
+    (t3 - 2 * t2 + t) * h * tangent(i) +
+    (-2 * t3 + 3 * t2) * vals[i + 1] +
+    (t3 - t2) * h * tangent(i + 1)
+  );
 }
 
-/** Rocket lift (scene px, negative is up). */
-const lift = (v: number) => -1500 * span(v, 0.81, 0.95) ** 2;
+// ── Launch beats ──────────────────────────────────────────────────────
+// Ignition rumbles on the pad, the rocket eases off and accelerates, rises
+// in frame before the camera catches it, then the camera pushes through
+// the porthole.
+const IGNITE = [0.795, 0.83];
+const LIFTOFF = [0.83, 0.965];
+/** Rocket lift (scene px, negative is up): a slow, heavy start, then speed. */
+const lift = (v: number) => -2200 * span(v, LIFTOFF[0], LIFTOFF[1]) ** 2.6;
+/** Rumble on the pad, fading once it's flying. */
+const shake = (v: number) => 5 * smooth(span(v, 0.8, 0.83)) * (1 - smooth(span(v, 0.85, 0.89)));
 
 /** Camera: focus point in scene coordinates and zoom. */
 function camera(v: number) {
@@ -142,11 +171,18 @@ function camera(v: number) {
   let fy = keys(v, at, [400, 390, SCY, SCY, SCY, 380, padTop[1] - 130]);
   let z = keys(v, at, [1.08, 1.12, 2.2, 2.6, 2.6, 1.15, 1.35]);
   if (v > 0.8) {
-    // Follow the porthole up, then push in through it.
-    const follow = smooth(span(v, 0.8, 0.85));
-    fx = lerp(fx, padTop[0], follow);
+    // Ignition: ease back a little to take in the smoke.
+    const back = smooth(span(v, 0.8, 0.85));
+    fy = lerp(fy, padTop[1] - 100, back);
+    z = lerp(z, 1.18, back);
+    // The rocket climbs out of frame a little before the camera catches it…
+    const follow = smooth(span(v, 0.85, 0.9));
     fy = lerp(fy, padTop[1] + PORT_Y + lift(v), follow);
-    z = lerp(1.35, 18, span(v, 0.86, 0.965) ** 3);
+    // …then pushes in through the porthole.
+    z = lerp(z, 18, span(v, 0.9, 0.968) ** 3);
+    const a = shake(v);
+    fx += a * Math.sin(v * 2900);
+    fy += a * Math.cos(v * 4100);
   }
   return { fx, fy, z };
 }
@@ -180,7 +216,7 @@ const B = {
   logo: [0.46, 0.475],
   cta: [0.49, 0.505],
   cards: [0.515, 0.54],
-  reveal: [0.945, 0.99],
+  reveal: [0.95, 0.99],
 } satisfies Record<string, [number, number]>;
 
 const LINES: { text: string; range: [number, number] }[] = [
@@ -437,6 +473,44 @@ function Bubble({ o, at, kind }: { o: MotionValue<number>; at: [number, number];
   );
 }
 
+/** Deterministic star field (x, y, opacity) for the flight. */
+const STARS: [number, number, number][] = Array.from({ length: 44 }, (_, i) => {
+  const r = (k: number) => {
+    const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  return [Math.round(r(1) * 1200), Math.round(r(2) * 800), 0.25 + r(3) * 0.6];
+});
+
+/** Smoke puffs (offset from the pad, and size), rolling outward along the ground. */
+const SMOKE: [number, number, number][] = [
+  [-150, 14, 30],
+  [-100, 4, 36],
+  [-50, 12, 40],
+  [0, 2, 44],
+  [50, 12, 40],
+  [100, 4, 36],
+  [150, 14, 30],
+  [-75, -16, 28],
+  [75, -16, 28],
+];
+
+function SmokePuff({ dx, dy, r, spread, scale }: { dx: number; dy: number; r: number; spread: MotionValue<number>; scale: MotionValue<number> }) {
+  const x = useTransform(spread, (t) => dx * 1.4 * t);
+  const cx = padTop[0] + dx * 0.35;
+  const cy = padTop[1] + 10 + dy;
+  return (
+    <motion.ellipse
+      cx={cx}
+      cy={cy}
+      rx={r}
+      ry={r * 0.58}
+      fill={dy < 0 ? "#57554f" : "#6b675f"}
+      style={{ x, scale, originX: `${cx}px`, originY: `${cy}px`, transformBox: "view-box" }}
+    />
+  );
+}
+
 export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: React.ReactNode; brand: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -506,11 +580,14 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
       }
       busy = true;
       queued = 0;
-      duration = Math.min(1.5, Math.max(0.6, Math.abs(to - p.get()) * 5));
+      // The launch gets time to breathe; other steps glide in and settle
+      // with a long, soft finish.
+      const launch = i === last && to > p.get();
+      duration = launch ? 4.6 : Math.min(1.7, Math.max(0.8, Math.abs(to - p.get()) * 6));
       startedAt = performance.now();
       anim = animate(p, to, {
         duration,
-        ease: [0.65, 0, 0.35, 1],
+        ease: launch ? [0.3, 0, 0.5, 1] : [0.4, 0, 0.1, 1],
         onComplete: () => {
           busy = false;
           acc = 0;
@@ -663,10 +740,20 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
   const boardX = useTransform(board, (t) => (padTop[0] - SCX) * smooth(t));
   const boardY = useTransform(board, (t) => (padTop[1] + PORT_Y - SCY) * smooth(t));
   const porthole = useP(p, [0.77, 0.79], [0, 1]);
-  const flame = useP(p, [0.79, 0.815], [0, 1]);
+  const flame = useP(p, IGNITE, [0, 1]);
+  // The flame stretches as the rocket picks up speed.
+  const flameLen = useTransform(p, (v) => span(v, IGNITE[0], IGNITE[1]) * (1 + 1.6 * smooth(span(v, 0.83, 0.9))));
   const liftY = useTransform(p, (v) => lift(v));
-  const smoke = useP(p, [0.8, 0.9], [0.2, 1.6]);
-  const smokeOpacity = useP(p, [0.8, 0.84, 0.92], [0, 0.55, 0]);
+  const groundGlow = useP(p, [0.795, 0.82, 0.86, 0.9], [0, 1, 1, 0]);
+  const smoke = useP(p, [0.8, 0.92], [0.3, 2.6]);
+  const smokeSpread = useP(p, [0.8, 0.92], [0, 1]);
+  const smokeOpacity = useP(p, [0.8, 0.83, 0.92], [0, 0.6, 0]);
+  const trail = useTransform(p, (v) => Math.min(1100, -lift(v) * 0.75));
+  const trailO = useP(p, [0.835, 0.86, 0.93], [0, 0.85, 0.6]);
+  // Stars streak past once it's flying; they move with the climb.
+  const starsY = useTransform(p, (v) => ((-lift(v) * 0.5) % 800 + 800) % 800);
+  const starsO = useP(p, [0.855, 0.885, 0.94], [0, 1, 0.4]);
+  const starLen = useTransform(p, (v) => 6 + 60 * smooth(span(v, 0.86, 0.93)));
 
   // ── Act 4: through the porthole, into the wordmark ───────────────────
   const reveal = useTransform([p, sw, sh], ([pv, wv, hv]) => {
@@ -681,7 +768,7 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
   const markO = useP(p, [0.955, 0.99], [0, 1]);
   const markScale = useP(p, [0.945, 1], [0.86, 1]);
   // The porthole darkens as the camera reaches it, so the reveal is seamless.
-  const portDark = useP(p, [0.9, 0.935], [0, 1]);
+  const portDark = useP(p, [0.91, 0.942], [0, 1]);
 
   const viewOrigin = (x: number, y: number) => ({ originX: `${x}px`, originY: `${y}px`, transformBox: "view-box" as const });
 
@@ -723,11 +810,30 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
               <stop offset="0.5" stopColor="#f2d9a8" stopOpacity="0.9" />
               <stop offset="1" stopColor="#f2d9a8" stopOpacity="0" />
             </linearGradient>
+            <linearGradient id="ls-trail" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#fff8ea" stopOpacity="0.9" />
+              <stop offset="0.25" stopColor="#d8d3c8" stopOpacity="0.35" />
+              <stop offset="1" stopColor="#8f8a80" stopOpacity="0" />
+            </linearGradient>
+            <radialGradient id="ls-fire">
+              <stop offset="0" stopColor="#f6dfb0" stopOpacity="0.55" />
+              <stop offset="1" stopColor="#f6dfb0" stopOpacity="0" />
+            </radialGradient>
             <radialGradient id="ls-glow">
               <stop offset="0" stopColor="#f3efe6" stopOpacity="0.22" />
               <stop offset="1" stopColor="#f3efe6" stopOpacity="0" />
             </radialGradient>
           </defs>
+
+          <motion.g style={{ opacity: starsO }}>
+            {[0, -800].map((off) => (
+              <motion.g key={off} style={{ y: starsY }}>
+                {STARS.map(([x, y, o], k) => (
+                  <motion.rect key={k} x={x} y={y + off} width={1.6} height={starLen} rx={0.8} fill="#e9e7e1" opacity={o} />
+                ))}
+              </motion.g>
+            ))}
+          </motion.g>
 
           <motion.g style={{ transform: cameraT, originX: 0.5, originY: 0.5, transformBox: "view-box" }}>
             {/* Platform */}
@@ -760,9 +866,13 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
             </motion.g>
 
             {/* Launch pad; the rocket assembles on it, then lifts off */}
+            {/* Ignition light washing over the platform */}
+            <motion.ellipse cx={padTop[0]} cy={padTop[1] + 10} rx={380} ry={170} fill="url(#ls-fire)" style={{ opacity: groundGlow }} />
             <Block x={PAD.x} y={PAD.y} z={0} w={1.8} d={1.8} h={0.35} tone={T.pad} />
             <motion.g style={{ y: liftY }}>
-              <motion.g style={{ opacity: flame, scaleY: flame, ...viewOrigin(padTop[0], padTop[1]) }}>
+              {/* Exhaust trail, growing with the climb */}
+              <motion.rect x={padTop[0] - 9} y={padTop[1]} width={18} height={trail} rx={9} fill="url(#ls-trail)" style={{ opacity: trailO }} />
+              <motion.g style={{ opacity: flame, scaleY: flameLen, ...viewOrigin(padTop[0], padTop[1]) }}>
                 <path
                   d={`M${padTop[0] - 22} ${padTop[1] - 4} Q${padTop[0]} ${padTop[1] + 150} ${padTop[0] + 22} ${padTop[1] - 4} Z`}
                   fill="url(#ls-flame)"
@@ -792,16 +902,8 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
               </motion.g>
             </motion.g>
             <motion.g style={{ opacity: smokeOpacity }}>
-              {[-90, -45, 0, 45, 90].map((dx, i) => (
-                <motion.ellipse
-                  key={dx}
-                  cx={padTop[0] + dx}
-                  cy={padTop[1] + 8 + (i % 2) * 6}
-                  rx={34}
-                  ry={20}
-                  fill="#6b675f"
-                  style={{ scale: smoke, ...viewOrigin(padTop[0] + dx, padTop[1] + 8) }}
-                />
+              {SMOKE.map(([dx, dy, r], i) => (
+                <SmokePuff key={i} dx={dx} dy={dy} r={r} spread={smokeSpread} scale={smoke} />
               ))}
             </motion.g>
 
