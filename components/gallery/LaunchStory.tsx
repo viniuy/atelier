@@ -15,7 +15,7 @@ import { DarkDots } from "./Backgrounds";
  *   4. The camera pushes through the porthole into the Atelier wordmark.
  *
  * One cinematic line of text narrates it. The story moves in slides: while
- * it's pinned, a scroll gesture (about two wheel notches, an arrow key, or a
+ * it's pinned, a scroll gesture (one wheel notch, an arrow key, or a
  * swipe) plays the animation through to the next finished beat (STOPS), so
  * it never rests half-way. At either end, scrolling carries on as normal.
  */
@@ -193,8 +193,9 @@ const LINES: { text: string; range: [number, number] }[] = [
 /** Finished beats the story rests on: talking, "that one", headline typed,
  *  fully edited, rocket built, boarded, and the wordmark. */
 const STOPS = [0.1, 0.22, 0.395, 0.555, 0.72, 0.79, 1];
-/** Wheel distance (px) that counts as one step: about two notches. */
-const WHEEL_STEP = 150;
+/** Wheel distance (px) that counts as one step: one notch on most mice;
+ *  finer wheels and trackpads add up over a short window. */
+const WHEEL_STEP = 90;
 
 const HEAD = ["Cool rooms,", "honest prices."];
 
@@ -467,6 +468,9 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
     const last = STOPS.length - 1;
     let idx = -1;
     let busy = false;
+    let startedAt = 0;
+    let duration = 0;
+    let queued = 0;
     let acc = 0;
     let accTimer: ReturnType<typeof setTimeout> | undefined;
     let quietUntil = 0;
@@ -501,20 +505,27 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
         return;
       }
       busy = true;
+      queued = 0;
+      duration = Math.min(1.5, Math.max(0.6, Math.abs(to - p.get()) * 5));
+      startedAt = performance.now();
       anim = animate(p, to, {
-        duration: Math.min(2, Math.max(0.7, Math.abs(to - p.get()) * 7)),
+        duration,
         ease: [0.65, 0, 0.35, 1],
         onComplete: () => {
-          // A short grace period swallows trackpad momentum.
-          setTimeout(() => {
-            busy = false;
-            acc = 0;
-          }, 220);
+          busy = false;
+          acc = 0;
+          // A step asked for near the end plays straight after.
+          if (queued) go(idx + queued);
         },
       });
     };
     /** True when this direction should leave the story and scroll the page. */
     const leaving = (d: number) => !busy && ((idx <= 0 && d < 0) || (idx === last && d > 0));
+    /** While a step plays, a deliberate input in its second half is queued
+     *  (trackpad momentum arrives early and is ignored). */
+    const queue = (d: number) => {
+      if ((performance.now() - startedAt) / 1000 > duration * 0.45) queued = d;
+    };
 
     const onScroll = () => {
       if (performance.now() < quietUntil) return;
@@ -539,10 +550,14 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
       const d = Math.sign(e.deltaY);
       if (!d || leaving(d)) return;
       e.preventDefault();
-      if (busy) return;
-      acc += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 800 : e.deltaY;
+      const px = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 800 : e.deltaY;
+      if (busy) {
+        if (Math.abs(px) >= 50) queue(d);
+        return;
+      }
+      acc += px;
       clearTimeout(accTimer);
-      accTimer = setTimeout(() => (acc = 0), 400);
+      accTimer = setTimeout(() => (acc = 0), 900);
       if (Math.abs(acc) >= WHEEL_STEP) {
         acc = 0;
         go(idx + d);
@@ -557,7 +572,8 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
       const d = down ? 1 : up ? -1 : 0;
       if (!d || leaving(d)) return;
       e.preventDefault();
-      if (!busy) go(idx + d);
+      if (busy) queue(d);
+      else go(idx + d);
     };
     const onTouchStart = (e: TouchEvent) => {
       touchY = e.touches[0]?.clientY ?? null;
