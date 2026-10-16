@@ -6,6 +6,7 @@ import { CategoryWheel } from "@/components/gallery/CategoryWheel";
 import { contactHrefForCategory, site } from "@/data/site";
 import { SiteCard } from "@/components/gallery/SiteCard";
 import { DarkDots } from "@/components/gallery/Backgrounds";
+import { BandReveal, BuildRule, FadeUp, RiseText, Stagger } from "@/components/gallery/Build";
 import { MorphField } from "@/components/gallery/MorphField";
 import { HeroHalftone } from "@/components/gallery/HeroHalftone";
 import { showcase } from "@/data/showcase";
@@ -57,19 +58,22 @@ export default function HomePage() {
         </Link>
       </section>
 
-      <section aria-labelledby="library-title" className="border-t border-line">
+      <section aria-labelledby="library-title">
+        <BuildRule />
         <div className="mx-auto max-w-6xl px-4 py-28 sm:px-6 md:py-40">
           <h2
             id="library-title"
             className="max-w-5xl text-[clamp(2.75rem,7.4vw,6.5rem)] leading-[0.98] font-semibold tracking-[-0.045em] text-balance"
           >
-            Show a client their{" "}
-            <span data-morph="word" className="transition-colors duration-500">
-              website
-            </span>{" "}
-            before you build it.
+            <RiseText>
+              Show a client their{" "}
+              <span data-morph="word" className="transition-colors duration-500">
+                website
+              </span>{" "}
+              before you build it.
+            </RiseText>
           </h2>
-          <div className="mt-14 grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
+          <FadeUp delay={0.55} className="mt-14 grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
             <p className="max-w-xl text-[19px] leading-relaxed text-muted">
               Complete website templates for local businesses, sorted by industry. Open one, click around as if it were
               live, and when a client says &ldquo;that one&rdquo;, we build their site on it.
@@ -85,16 +89,18 @@ export default function HomePage() {
                 How it works
               </Link>
             </div>
-          </div>
+          </FadeUp>
         </div>
       </section>
 
-      <section id="templates" aria-labelledby="templates-title" className="scroll-mt-16 border-t border-line">
+      <section id="templates" aria-labelledby="templates-title" className="scroll-mt-16">
+        <BuildRule />
         <span id="industries" className="block scroll-mt-16" aria-hidden="true" />
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
           <h2 id="templates-title" className="sr-only">
             Templates by industry
           </h2>
+          <FadeUp delay={0.25}>
           <CategoryWheel
             categories={categories.map((c) => ({
               slug: c.slug,
@@ -105,20 +111,24 @@ export default function HomePage() {
               askHref: contactHrefForCategory(c.name),
             }))}
           />
+          </FadeUp>
         </div>
       </section>
 
       {showcase.length > 0 && (
-        <section aria-labelledby="sites-title" className="border-t border-line">
+        <section aria-labelledby="sites-title">
+          <BuildRule />
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <div className="mb-10 flex items-center justify-between gap-6">
               <div>
                 <h2 id="sites-title" className="text-[22px] font-semibold tracking-[-0.02em]">
-                  Real sites
+                  <RiseText>Real sites</RiseText>
                 </h2>
-                <p className="mt-2 max-w-lg text-[14px] text-muted">
-                  Live client work, plus the real businesses whose sites shaped our templates.
-                </p>
+                <FadeUp delay={0.3}>
+                  <p className="mt-2 max-w-lg text-[14px] text-muted">
+                    Live client work, plus the real businesses whose sites shaped our templates.
+                  </p>
+                </FadeUp>
               </div>
               <div className="flex shrink-0 items-center gap-10">
                 <div data-morph="globe" aria-hidden="true" className="hidden size-[150px] md:block" />
@@ -127,28 +137,29 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-            <ul className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-4">
-              {[...showcase]
+            <Stagger
+              className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-4"
+              delay={0.35}
+              items={[...showcase]
                 .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "work" ? -1 : 1))
                 .slice(0, 4)
-                .map((s) => (
-                  <li key={s.slug}>
-                    <SiteCard site={s} sizes="(min-width: 1024px) 270px, (min-width: 640px) 50vw, 100vw" />
-                  </li>
-                ))}
-            </ul>
+                .map((s) => ({
+                  key: s.slug,
+                  node: <SiteCard site={s} sizes="(min-width: 1024px) 270px, (min-width: 640px) 50vw, 100vw" />,
+                }))}
+            />
           </div>
         </section>
       )}
 
-      <section id="process" aria-labelledby="process-title" className="relative isolate mt-20 scroll-mt-16 overflow-hidden bg-ink text-paper">
+      <BandReveal id="process" labelledBy="process-title" className="relative isolate mt-20 scroll-mt-16 overflow-hidden bg-ink text-paper">
         <div className="absolute inset-0 -z-10">
           <DarkDots />
         </div>
         <div className="pointer-events-none mx-auto max-w-6xl px-4 py-24 sm:px-6 [&_a]:pointer-events-auto">
           <div className="flex items-center justify-between gap-10">
             <h2 id="process-title" className="max-w-xl text-[clamp(1.8rem,4vw,2.6rem)] leading-tight font-semibold tracking-[-0.03em]">
-              From preview to launch
+              <RiseText>From preview to launch</RiseText>
             </h2>
             <div
               data-morph="steps"
@@ -158,16 +169,24 @@ export default function HomePage() {
               className="hidden h-[130px] w-[240px] md:block"
             />
           </div>
-          <ol className="mt-14 grid gap-10 border-t border-white/10 pt-10 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((s, i) => (
-              <li key={s.title}>
-                <span className="font-mono text-[13px] text-[#a8a6a0]">{i + 1}</span>
-                <h3 className="mt-3 font-medium">{s.title}</h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-[#a8a6a0]">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-16 flex flex-wrap items-center justify-between gap-6 border-t border-white/10 pt-10">
+          <BuildRule dark className="mt-14" />
+          <Stagger
+            className="grid gap-10 pt-10 sm:grid-cols-2 lg:grid-cols-4"
+            delay={0.3}
+            step={0.12}
+            items={steps.map((st, i) => ({
+              key: st.title,
+              node: (
+                <>
+                  <span className="font-mono text-[13px] text-[#a8a6a0]">{i + 1}</span>
+                  <h3 className="mt-3 font-medium">{st.title}</h3>
+                  <p className="mt-2 text-[14px] leading-relaxed text-[#a8a6a0]">{st.body}</p>
+                </>
+              ),
+            }))}
+          />
+          <BuildRule dark className="mt-16" />
+          <FadeUp delay={0.2} className="flex flex-wrap items-center justify-between gap-6 pt-10">
             <p className="text-[14px] text-[#a8a6a0]">
               {templates.length} templates across {live.length} {live.length === 1 ? "industry" : "industries"} so far.
             </p>
@@ -177,9 +196,9 @@ export default function HomePage() {
             >
               Start browsing <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
-          </div>
+          </FadeUp>
         </div>
-      </section>
+      </BandReveal>
     </>
   );
 }

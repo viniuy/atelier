@@ -51,6 +51,16 @@ body {
   }
 }
 
+/* Gallery "build" animations (components/gallery/Build.tsx): with reduced
+   motion, show everything in its final state. */
+@media (prefers-reduced-motion: reduce) {
+  [data-build] {
+    transform: none !important;
+    clip-path: none !important;
+    opacity: 1 !important;
+  }
+}
+
 /* Consistent, visible keyboard focus everywhere (templates can override). */
 :focus-visible {
   outline: 2px solid currentColor;
