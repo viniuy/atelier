@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { categories } from "@/data/categories";
 import { countByCategory, getTemplatesByCategory, templates, toCardData } from "@/data/templates";
-import { TemplateCard } from "@/components/gallery/TemplateCard";
+import { TemplateWheel } from "@/components/gallery/TemplateWheel";
 import { SiteCard } from "@/components/gallery/SiteCard";
 import { DarkDots } from "@/components/gallery/Backgrounds";
 import { MorphField } from "@/components/gallery/MorphField";
@@ -100,16 +100,10 @@ export default function HomePage() {
                     href={`/c/${c.slug}`}
                     className="text-[14px] text-muted underline-offset-4 hover:text-ink hover:underline"
                   >
-                    Filter by style
+                    View as grid
                   </Link>
                 </div>
-                <ul className="grid gap-x-8 gap-y-14 sm:grid-cols-2">
-                  {items.map((t, i) => (
-                    <li key={t.slug}>
-                      <TemplateCard template={t} eager={i < 2} />
-                    </li>
-                  ))}
-                </ul>
+                <TemplateWheel items={items} label={c.name} />
               </div>
             </section>
           );

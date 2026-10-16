@@ -46,7 +46,7 @@ Set `NEXT_PUBLIC_SITE_URL` (e.g. `https://atelier.yourdomain.com`) so shareable 
 
 | Route | Purpose |
 | --- | --- |
-| `/` | Particle "Atelier" hero, every live template grouped by industry, real sites, industries, process |
+| `/` | Particle "Atelier" hero, a template wheel per live industry, real sites, industries, process |
 | `/c/[category]` | Filterable grid of a category's templates ("Coming soon" state for empty categories) |
 | `/t/[slug]` | Live preview in a Desktop / iPad / iPhone frame, details, palette, fonts, "I like this one" CTA, copy-client-link |
 | `/sites` | Real websites: your client work and labelled inspiration |
@@ -188,6 +188,7 @@ The shell follows the anti-"AI slop" checklists from [Impeccable](https://github
 ## Third-party UI
 
 - **Particle morph** (`components/gallery/MorphField.tsx`, no library): the home hero's "Atelier" is drawn as ~3,400 particles that break apart on scroll and reform into a symbol beside each section. Mark any element with `data-morph="word|browser|globe|grid|steps"` to make it a stop; `data-morph-color` and `data-morph-size` tune it. Scroll-scrubbed (reverses when scrolling up), skipped on phones except the hero, and it swaps shapes without the flight for reduced-motion users.
+- **[React Bits](https://reactbits.dev)** `OptionWheel`: the home page's template picker (`components/gallery/TemplateWheel.tsx`), a curved wheel of template names beside a large preview. Scroll, drag, click or use the arrow keys. Two local patches are marked `Atelier patch`: an accessible `label` prop, and at either end of the wheel the mouse wheel scrolls the page instead of being trapped.
 - **[React Bits](https://reactbits.dev)** `DotGrid` (`components/reactbits/`, vendored from the registry): the faint dot field behind the home hero and the dark process band, wrapped in `components/gallery/Backgrounds.tsx`. ESLint's React Compiler rules are relaxed for that folder only.
 - **[Motion](https://motion.dev)**: page fade, device-frame morphing, filter transitions. Respects the OS reduce-motion setting.
 - **[lucide](https://lucide.dev)**: icons. Brand marks (Messenger, Viber, WhatsApp, Facebook…) are simplified SVGs in `templates/_kit/BrandIcons.tsx`.
