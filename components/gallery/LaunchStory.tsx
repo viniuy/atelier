@@ -1,15 +1,21 @@
 "use client";
 
-import { useRef, useSyncExternalStore } from "react";
-import { motion, useScroll, useTransform, type MotionValue } from "motion/react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { motion, useMotionValue, useScroll, useSpring, useTransform, type MotionValue } from "motion/react";
 import { DarkDots } from "./Backgrounds";
 
 /**
- * "From preview to launch" as a pinned, scroll-scrubbed 2.5D scene: an
- * isometric miniature world (shaded blocks, voxel-style people) with a
- * camera that zooms in on the website as it's chosen and tailored, pulls
- * back for the rocket, then follows the launch. One cinematic line of text
- * at a time narrates it. Scrolling back rewinds everything.
+ * "From preview to launch" as a pinned, scroll-scrubbed 2.5D story:
+ *
+ *   1. Two people talk over a website in an isometric miniature world.
+ *   2. The camera dives into the screen until the site fills the view, and
+ *      it's edited live: headline typed, image, logo, button, sections.
+ *   3. The site shrinks back into the scene (the people have gone), boards a
+ *      rocket, and the rocket flies up with the camera following.
+ *   4. The camera pushes through the porthole into the Atelier wordmark.
+ *
+ * One cinematic line of text narrates it. Scroll progress is spring-smoothed
+ * so wheel steps glide instead of jumping; scrolling back rewinds.
  */
 
 type Step = { title: string; body: string };
@@ -65,7 +71,6 @@ const T = {
   pantsA: { top: "#5a5853", left: "#4c4a46", right: "#403e3a" },
   shirtB: { top: "#8f8a80", left: "#7d786f", right: "#6b675f" },
   pantsB: { top: "#3d3b37", left: "#33312e", right: "#2a2926" },
-  button: { top: "#ece8df", left: "#cfcac0", right: "#b7b2a8" },
 };
 
 /** A voxel-style person standing at (x, y), facing the viewer. */
@@ -85,29 +90,68 @@ function Person({ x, y, shirt, pants, arm }: { x: number; y: number; shirt: Tone
   );
 }
 
-// Website panel: a vertical screen on the X–Z plane, facing the viewer.
+// ── The website ───────────────────────────────────────────────────────
+// Drawn once in design pixels (DW × DH) and used twice: on the screen in the
+// scene (through an isometric matrix) and full size while it's edited.
+const DW = 1280;
+const DH = 840;
+/** Design px per world unit, so the screen is 6.4 × 4.2 units. */
+const DPU = 200;
 const PANEL = { x0: -3.2, x1: 3.2, y: -1.2, z0: 1.4, z1: 5.6 };
 const PW = PANEL.x1 - PANEL.x0;
 const PH = PANEL.z1 - PANEL.z0;
-/** Maps panel content units (0..PW across, 0..PH down) onto its face. */
-const panelMatrix = (() => {
-  const [ox, oy] = proj(PANEL.x0, PANEL.y + 0.16, PANEL.z1);
-  return `matrix(${(U * C30).toFixed(3)} ${(U * 0.5).toFixed(3)} 0 ${U} ${ox.toFixed(2)} ${oy.toFixed(2)})`;
-})();
-const panelCenter = proj((PANEL.x0 + PANEL.x1) / 2, PANEL.y, (PANEL.z0 + PANEL.z1) / 2);
+const [POX, POY] = proj(PANEL.x0, PANEL.y + 0.16, PANEL.z1);
+const panelMatrix = `matrix(${((U * C30) / DPU).toFixed(5)} ${((U * 0.5) / DPU).toFixed(5)} 0 ${(U / DPU).toFixed(5)} ${POX.toFixed(2)} ${POY.toFixed(2)})`;
+/** Centre of the screen's face, in scene coordinates. */
+const SCX = POX + (PW / 2) * U * C30;
+const SCY = POY + (PW / 2) * U * 0.5 + (PH / 2) * U;
 
 // Launch pad and rocket, front centre.
-const PAD = { x: 0.6, y: 3.0 };
+const PAD = { x: 1.5, y: 2.1 };
 const padTop = proj(PAD.x + 0.9, PAD.y + 0.9, 0.35);
 const ROCKET_H = 250;
 const PORT_Y = -ROCKET_H * 0.56;
+const PORT_R = 15;
 
 const PA = { x: -4.6, y: 0.6 };
 const PB = { x: 3.7, y: 0.4 };
-const buttonAt = proj(3.1, 2.45, 1.32);
 
-/** Narrow screens: show the whole scene (meet) and zoom the camera a bit more. */
-const NARROW = "(max-width: 640px)";
+// ── Timing helpers ────────────────────────────────────────────────────
+const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
+const smooth = (t: number) => t * t * (3 - 2 * t);
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const span = (v: number, a: number, b: number) => clamp01((v - a) / (b - a));
+/** Piecewise interpolation through keyframes, eased within each segment. */
+function keys(v: number, at: number[], vals: number[]) {
+  if (v <= at[0]) return vals[0];
+  for (let i = 1; i < at.length; i++) {
+    if (v <= at[i]) return lerp(vals[i - 1], vals[i], smooth((v - at[i - 1]) / (at[i] - at[i - 1])));
+  }
+  return vals[vals.length - 1];
+}
+
+/** Rocket lift (scene px, negative is up). */
+const lift = (v: number) => -1500 * span(v, 0.81, 0.95) ** 2;
+
+/** Camera: focus point in scene coordinates and zoom. */
+function camera(v: number) {
+  const at = [0, 0.1, 0.24, 0.27, 0.6, 0.7, 0.8];
+  let fx = keys(v, at, [600, 600, SCX, SCX, SCX, 600, padTop[0]]);
+  let fy = keys(v, at, [400, 390, SCY, SCY, SCY, 380, padTop[1] - 130]);
+  let z = keys(v, at, [1.08, 1.12, 2.2, 2.6, 2.6, 1.15, 1.35]);
+  if (v > 0.8) {
+    // Follow the porthole up, then push in through it.
+    const follow = smooth(span(v, 0.8, 0.85));
+    fx = lerp(fx, padTop[0], follow);
+    fy = lerp(fy, padTop[1] + PORT_Y + lift(v), follow);
+    z = lerp(1.35, 18, span(v, 0.86, 0.965) ** 3);
+  }
+  return { fx, fy, z };
+}
+
+/** Narrow screens show the whole scene (meet) and zoom the camera a bit more. */
+const NARROW_PX = 640;
+const NARROW = `(max-width: ${NARROW_PX}px)`;
 function useNarrow() {
   return useSyncExternalStore(
     (cb) => {
@@ -119,20 +163,236 @@ function useNarrow() {
     () => false,
   );
 }
+/** Scene px → screen px, and the extra zoom on narrow screens. */
+const viewScale = (w: number, h: number) => (w <= NARROW_PX ? Math.min(w / 1200, h / 800) : Math.max(w / 1200, h / 800));
+const zoomBoost = (w: number) => (w <= NARROW_PX ? 1.5 : 1);
+
+// ── Story beats ───────────────────────────────────────────────────────
+const B = {
+  overlayIn: [0.262, 0.272], // full-size site appears over the zoomed screen
+  flatten: [0.272, 0.33], // …and un-skews to fill the view
+  unflatten: [0.54, 0.6],
+  overlayOut: [0.6, 0.61],
+  typing: [0.335, 0.39],
+  image: [0.41, 0.44],
+  logo: [0.46, 0.475],
+  cta: [0.49, 0.505],
+  cards: [0.515, 0.54],
+  reveal: [0.945, 0.99],
+} satisfies Record<string, [number, number]>;
+
+const LINES: { text: string; range: [number, number] }[] = [
+  { text: "Turning your ideas", range: [0.02, 0.2] },
+  { text: "into a website your customers will love,", range: [0.31, 0.43] },
+  { text: "tailored to every detail of your brand,", range: [0.44, 0.57] },
+  { text: "and launched to the world.", range: [0.69, 0.87] },
+];
+
+const HEAD = ["Cool rooms,", "honest prices."];
 
 function useP(p: MotionValue<number>, input: number[], output: number[]) {
   return useTransform(p, input, output, { clamp: true });
 }
 
-const LINES: { text: string; range: [number, number] }[] = [
-  { text: "Turning your ideas", range: [0.02, 0.22] },
-  { text: "into a website your customers will love,", range: [0.25, 0.45] },
-  { text: "tailored to every detail of your brand,", range: [0.48, 0.66] },
-  { text: "and launched to the world.", range: [0.7, 0.92] },
+type SiteState = {
+  head1: MotionValue<string>;
+  head2: MotionValue<string>;
+  placeholder: MotionValue<number>;
+  typedOn: MotionValue<number>;
+  image: MotionValue<number>;
+  logo: MotionValue<number>;
+  logoOff: MotionValue<number>;
+  cta: MotionValue<number>;
+  ctaOff: MotionValue<number>;
+  card: MotionValue<number>[];
+  cardY: MotionValue<number>[];
+};
+
+function useSite(p: MotionValue<number>): SiteState {
+  const total = HEAD[0].length + HEAD[1].length;
+  const typed = useTransform(p, (v) => Math.round(span(v, ...B.typing) * total));
+  const c0 = useTransform(p, (v) => span(v, B.cards[0], B.cards[0] + 0.015));
+  const c1 = useTransform(p, (v) => span(v, B.cards[0] + 0.005, B.cards[0] + 0.02));
+  const c2 = useTransform(p, (v) => span(v, B.cards[0] + 0.01, B.cards[1]));
+  const logo = useP(p, B.logo, [0, 1]);
+  const cta = useP(p, B.cta, [0, 1]);
+  return {
+    head1: useTransform(typed, (n) => HEAD[0].slice(0, n)),
+    head2: useTransform(typed, (n) => HEAD[1].slice(0, Math.max(0, n - HEAD[0].length))),
+    placeholder: useTransform(typed, (n): number => (n === 0 ? 1 : 0)),
+    typedOn: useTransform(typed, (n): number => (n === 0 ? 0 : 1)),
+    image: useP(p, B.image, [0, 1]),
+    logo,
+    logoOff: useTransform(logo, (t) => 1 - t),
+    cta,
+    ctaOff: useTransform(cta, (t) => 1 - t),
+    card: [c0, c1, c2],
+    cardY: [
+      useTransform(c0, (t) => (1 - smooth(t)) * 40),
+      useTransform(c1, (t) => (1 - smooth(t)) * 40),
+      useTransform(c2, (t) => (1 - smooth(t)) * 40),
+    ],
+  };
+}
+
+/** The website's artwork, in design pixels. */
+function SiteArt({ s }: { s: SiteState }) {
+  const ink = "#1f1e1c";
+  return (
+    <g>
+      <rect width={DW} height={DH} rx={24} fill="#efebe2" />
+      {/* Browser bar */}
+      <path d={`M24 0 H${DW - 24} Q${DW} 0 ${DW} 24 V84 H0 V24 Q0 0 24 0 Z`} fill="#d9d4ca" />
+      {[50, 92, 134].map((cx) => (
+        <circle key={cx} cx={cx} cy={42} r={11} fill="#9d988e" />
+      ))}
+      <rect x={250} y={22} width={700} height={40} rx={20} fill="#eae6dd" />
+      <text x={280} y={49} fontSize={19} fill="#6d6a63">
+        yourbusiness.ph
+      </text>
+
+      {/* Nav */}
+      <motion.rect x={60} y={120} width={180} height={40} rx={8} fill="#d6d1c6" style={{ opacity: s.logoOff }} />
+      <motion.text x={60} y={152} fontSize={32} fontWeight={700} letterSpacing={-1} fill={ink} style={{ opacity: s.logo }}>
+        Ayos Aircon
+      </motion.text>
+      {(
+        [
+          ["Services", 830],
+          ["Pricing", 960],
+          ["Contact", 1080],
+        ] as const
+      ).map(([t, x]) => (
+        <text key={t} x={x} y={148} fontSize={19} fill="#6d6a63">
+          {t}
+        </text>
+      ))}
+
+      {/* Hero image: an empty frame, then a wall-mounted unit cooling a room */}
+      <rect x={60} y={210} width={560} height={430} rx={18} fill="#dcd7cd" />
+      <path d="M260 470 l70 -80 l50 55 l30 -30 l70 75 Z" fill="none" stroke="#bdb8ad" strokeWidth={6} strokeLinejoin="round" />
+      <circle cx={420} cy={360} r={20} fill="none" stroke="#bdb8ad" strokeWidth={6} />
+      <motion.g style={{ opacity: s.image }}>
+        <rect x={60} y={210} width={560} height={430} rx={18} fill="#3b3a36" />
+        <path d="M60 560 H620 V622 Q620 640 602 640 H78 Q60 640 60 622 Z" fill="#33322f" />
+        <rect x={150} y={280} width={380} height={110} rx={22} fill="#efebe2" />
+        <rect x={150} y={352} width={380} height={38} rx={0} fill="#d9d4ca" />
+        <path d="M150 352 H530 V368 Q530 390 508 390 H172 Q150 390 150 368 Z" fill="#d9d4ca" />
+        <rect x={180} y={366} width={320} height={5} rx={2.5} fill="#bdb8ad" />
+        <circle cx={500} cy={310} r={6} fill="#6d6a63" />
+        {[0, 1, 2].map((i) => (
+          <path
+            key={i}
+            d={`M${230 + i * 110} 420 q 22 36 0 70 q -22 36 0 70`}
+            fill="none"
+            stroke="#6d6a63"
+            strokeWidth={5}
+            strokeLinecap="round"
+          />
+        ))}
+      </motion.g>
+
+      {/* Headline, typed in */}
+      <motion.text x={680} y={292} fontSize={58} fontWeight={700} letterSpacing={-2} fill="#bdb8ad" style={{ opacity: s.placeholder }}>
+        Your headline
+      </motion.text>
+      <motion.text x={680} y={292} fontSize={58} fontWeight={700} letterSpacing={-2} fill={ink} style={{ opacity: s.typedOn }}>
+        {s.head1}
+      </motion.text>
+      <motion.text x={680} y={358} fontSize={58} fontWeight={700} letterSpacing={-2} fill={ink}>
+        {s.head2}
+      </motion.text>
+      <rect x={680} y={398} width={430} height={14} rx={7} fill="#bdb8ad" />
+      <rect x={680} y={424} width={350} height={14} rx={7} fill="#cfcac0" />
+
+      {/* Button */}
+      <rect x={680} y={478} width={250} height={70} rx={35} fill="none" stroke="#9d988e" strokeWidth={2.5} />
+      <motion.text x={805} y={520} fontSize={21} textAnchor="middle" fill="#9d988e" style={{ opacity: s.ctaOff }}>
+        Button
+      </motion.text>
+      <motion.g style={{ opacity: s.cta }}>
+        <rect x={680} y={478} width={250} height={70} rx={35} fill={ink} />
+        <text x={805} y={520} fontSize={21} textAnchor="middle" fill="#f4f1ea">
+          Book a service
+        </text>
+      </motion.g>
+
+      {/* Services row */}
+      <rect x={60} y={688} width={1160} height={2} fill="#d6d1c6" />
+      {[60, 453, 846].map((x, i) => (
+        <motion.g key={x} style={{ opacity: s.card[i], y: s.cardY[i] }}>
+          <rect x={x} y={714} width={374} height={100} rx={16} fill="#e3dfd5" />
+          <rect x={x + 24} y={738} width={52} height={52} rx={12} fill="#cfcac0" />
+          <rect x={x + 96} y={744} width={170} height={14} rx={7} fill="#6d6a63" />
+          <rect x={x + 96} y={770} width={220} height={11} rx={5.5} fill="#bdb8ad" />
+        </motion.g>
+      ))}
+    </g>
+  );
+}
+
+/** What gets selected while the site is edited (design px). */
+const EDITS: { label: string; box: [number, number, number, number]; hold: [number, number] }[] = [
+  { label: "Heading", box: [664, 226, 560, 150], hold: [0.32, 0.395] },
+  { label: "Image", box: [48, 198, 584, 454], hold: [0.405, 0.445] },
+  { label: "Logo", box: [48, 108, 270, 64], hold: [0.455, 0.475] },
+  { label: "Button", box: [668, 466, 274, 94], hold: [0.485, 0.505] },
+  { label: "Section", box: [48, 702, 1184, 124], hold: [0.515, 0.545] },
 ];
+const EDIT_AT = EDITS.flatMap((e) => e.hold);
+const editVal = (v: number, k: number) =>
+  keys(
+    v,
+    EDIT_AT,
+    EDITS.flatMap((e) => [e.box[k], e.box[k]]),
+  );
+
+function Handle({ x, y, w, h, hx, hy }: { x: MotionValue<number>; y: MotionValue<number>; w: MotionValue<number>; h: MotionValue<number>; hx: number; hy: number }) {
+  const px = useTransform([x, w], ([a, b]) => Number(a) + Number(b) * hx - 6);
+  const py = useTransform([y, h], ([a, b]) => Number(a) + Number(b) * hy - 6);
+  return <motion.rect width={12} height={12} fill="#efebe2" stroke="#1f1e1c" strokeWidth={2} x={px} y={py} />;
+}
+
+/** Selection outline, its label, and a cursor that moves between edits. */
+function Editor({ p }: { p: MotionValue<number> }) {
+  const x = useTransform(p, (v) => editVal(v, 0));
+  const y = useTransform(p, (v) => editVal(v, 1));
+  const w = useTransform(p, (v) => editVal(v, 2));
+  const h = useTransform(p, (v) => editVal(v, 3));
+  const on = useP(p, [0.318, 0.33, 0.54, 0.548], [0, 1, 1, 0]);
+  const label = useTransform(p, (v) => [...EDITS].reverse().find((e) => v >= e.hold[0] - 0.005)?.label ?? EDITS[0].label);
+  // The cursor leads the selection slightly, like a hand doing the work.
+  const cx = useTransform(p, (v) => editVal(v + 0.006, 0) + editVal(v + 0.006, 2) * 0.72);
+  const cy = useTransform(p, (v) => editVal(v + 0.006, 1) + editVal(v + 0.006, 3) * 0.7);
+
+  return (
+    <motion.g style={{ opacity: on }}>
+      <motion.rect x={x} y={y} width={w} height={h} rx={6} fill="rgba(31,30,28,0.03)" stroke="#1f1e1c" strokeWidth={2} />
+      {(
+        [
+          [0, 0],
+          [1, 0],
+          [0, 1],
+          [1, 1],
+        ] as const
+      ).map(([hx, hy]) => (
+        <Handle key={`${hx}${hy}`} x={x} y={y} w={w} h={h} hx={hx} hy={hy} />
+      ))}
+      <motion.g style={{ x, y }}>
+        <rect x={0} y={-40} width={112} height={30} rx={8} fill="#1f1e1c" />
+        <motion.text x={14} y={-19.5} fontSize={15} fill="#f4f1ea">
+          {label}
+        </motion.text>
+      </motion.g>
+      <motion.g style={{ x: cx, y: cy }}>
+        <path d="M0 0 L0 30 L8 23 L14 36 L20 33 L14 21 L25 21 Z" fill="#1f1e1c" stroke="#f4f1ea" strokeWidth={2} strokeLinejoin="round" />
+      </motion.g>
+    </motion.g>
+  );
+}
 
 function Line({ p, text, range: [a, b] }: { p: MotionValue<number>; text: string; range: [number, number] }) {
-  const f = 0.035;
+  const f = 0.03;
   const opacity = useP(p, [a, a + f, b - f, b], [0, 1, 1, 0]);
   const blur = useP(p, [a, a + f, b - f, b], [10, 0, 0, 8]);
   const y = useP(p, [a, a + f, b - f, b], [18, 0, 0, -12]);
@@ -168,69 +428,103 @@ function Bubble({ o, at, kind }: { o: MotionValue<number>; at: [number, number];
   );
 }
 
-export function LaunchStory({ steps, title }: { steps: Step[]; title: React.ReactNode }) {
+export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: React.ReactNode; brand: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress: p } = useScroll({ target: ref, offset: ["start start", "end end"] });
+  const stage = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
+  // Glide between wheel steps: a quick, overdamped spring (~0.1s), so it
+  // follows the scroll closely without stair-stepping.
+  const p = useSpring(scrollYProgress, { stiffness: 300, damping: 40, mass: 1, restDelta: 0.00005 });
   const narrow = useNarrow();
+  const sw = useMotionValue(1200);
+  const sh = useMotionValue(800);
 
-  // ── Camera: focus point (scene coords) and zoom ────────────────────────
-  const cam = [0, 0.08, 0.3, 0.5, 0.64, 0.74, 0.86, 1];
-  const fx = useP(p, cam, [600, 600, panelCenter[0], panelCenter[0], panelCenter[0], 600, 600, 600]);
-  const fy = useP(p, cam, [400, 390, panelCenter[1], panelCenter[1] + 6, panelCenter[1], 400, 380, 290]);
-  const zoom = useP(p, cam, [1.08, 1.12, 1.6, 2.05, 1.7, 1.2, 1.18, 1.02]);
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      sw.set(e.contentRect.width);
+      sh.set(e.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sw, sh]);
+
   // Motion keeps the transform origin at the view-box centre (600, 400), so
   // scale(s) translate(centre - focus) puts the focus point dead centre.
-  const camera = useTransform(
-    [fx, fy, zoom],
-    ([x, y, s]) => `scale(${Number(s) * (narrow ? 1.5 : 1)}) translate(${600 - Number(x)}px, ${400 - Number(y)}px)`,
-  );
-
-  // ── Act 1: talking ────────────────────────────────────────────────────
-  const bubbleA = useP(p, [0.05, 0.09, 0.15, 0.18], [0, 1, 1, 0]);
-  const bubbleB = useP(p, [0.14, 0.18, 0.25, 0.28], [0, 1, 1, 0]);
-  const screenOn = useP(p, [0.02, 0.1], [0.15, 1]);
-
-  // ── Act 2: "that one" ────────────────────────────────────────────────
-  const point = useP(p, [0.28, 0.32, 0.44, 0.48], [0, 1, 1, 0]);
-  const pointRest = useTransform(point, (v) => 1 - v);
-  const selected = useP(p, [0.3, 0.36], [0, 1]);
-  const bubbleThat = useP(p, [0.33, 0.37, 0.44, 0.47], [0, 1, 1, 0]);
-
-  // ── Act 3: tailoring ─────────────────────────────────────────────────
-  const logo = useP(p, [0.5, 0.55], [0, 1]);
-  const heroFill = useP(p, [0.48, 0.56], [0, 1]);
-  const line1 = useP(p, [0.5, 0.56], [0.15, 1]);
-  const line2 = useP(p, [0.53, 0.59], [0.1, 1]);
-  const line3 = useP(p, [0.56, 0.62], [0.1, 1]);
-  const cta = useP(p, [0.59, 0.64], [0, 1]);
-
-  // ── Act 4: launch ────────────────────────────────────────────────────
-  const rocketBuild = useP(p, [0.64, 0.72], [0, 1]);
-  const reach = useP(p, [0.72, 0.75, 0.79, 0.8], [0, 1, 1, 0]);
-  const reachRest = useTransform(reach, (v) => 1 - v);
-  const press = useP(p, [0.745, 0.765], [0, 5]);
-  const glow = useP(p, [0.75, 0.78], [0, 0.35]);
-  const panelScale = useP(p, [0.77, 0.84], [1, 0.08]);
-  const panelOpacity = useP(p, [0.82, 0.845], [1, 0]);
-  const board = useP(p, [0.77, 0.84], [0, 1]);
-  const boardX = useTransform(board, (t) => (padTop[0] - panelCenter[0]) * t);
-  const boardY = useTransform(board, (t) => (padTop[1] + PORT_Y - panelCenter[1]) * t);
-  const porthole = useP(p, [0.83, 0.86], [0, 1]);
-  const flame = useP(p, [0.85, 0.88], [0, 1]);
-  const lift = useTransform(p, (v) => {
-    const t = Math.min(1, Math.max(0, (v - 0.87) / 0.11));
-    return -900 * t * t;
+  const cameraT = useTransform([p, sw], ([v, w]) => {
+    const c = camera(Number(v));
+    return `scale(${c.z * zoomBoost(Number(w))}) translate(${600 - c.fx}px, ${400 - c.fy}px)`;
   });
-  const smoke = useP(p, [0.86, 0.97], [0.2, 1.4]);
-  const smokeOpacity = useP(p, [0.86, 0.9, 1], [0, 0.55, 0]);
-  const live = useP(p, [0.95, 0.99], [0, 1]);
-  const liveY = useTransform(live, [0, 1], [12, 0]);
+
+  // ── Act 1: talking, then "that one" ──────────────────────────────────
+  const screenDim = useP(p, [0.02, 0.1], [0.85, 0]);
+  const bubbleA = useP(p, [0.04, 0.07, 0.1, 0.12], [0, 1, 1, 0]);
+  const bubbleB = useP(p, [0.1, 0.13, 0.16, 0.18], [0, 1, 1, 0]);
+  const point = useP(p, [0.15, 0.18, 0.24, 0.26], [0, 1, 1, 0]);
+  const pointRest = useTransform(point, (v) => 1 - v);
+  const bubbleThat = useP(p, [0.18, 0.21, 0.24, 0.26], [0, 1, 1, 0]);
+  const selected = useP(p, [0.17, 0.2, 0.25, 0.265], [0, 1, 1, 0]);
+  // The people step out while the site fills the view.
+  const people = useP(p, [0.27, 0.28], [1, 0]);
+
+  // ── Act 2: full-size site, edited live ───────────────────────────────
+  const site = useSite(p);
+  const overlayO = useTransform(p, (v) => span(v, ...B.overlayIn) * (1 - span(v, ...B.overlayOut)));
+  const overlayT = useTransform([p, sw, sh], ([pv, wv, hv]) => {
+    const v = Number(pv);
+    const W = Number(wv);
+    const H = Number(hv);
+    const flat = smooth(span(v, ...B.flatten)) * (1 - smooth(span(v, ...B.unflatten)));
+    // Start: exactly where the screen sits in the zoomed scene, skewed.
+    const k = (viewScale(W, H) * camera(v).z * zoomBoost(W) * U) / DPU;
+    // End: as large as fits between the title and the narration.
+    const top = 72;
+    const bottom = Math.max(H * 0.2, 110);
+    const gx = Math.max(16, W * 0.05);
+    const fit = Math.min((W - 2 * gx) / DW, (H - top - bottom) / DH);
+    const a = lerp(C30 * k, fit, flat);
+    const b = lerp(0.5 * k, 0, flat);
+    const d = lerp(k, fit, flat);
+    const cx = W / 2;
+    const cy = lerp(H / 2, top + (H - top - bottom) / 2, flat);
+    return `matrix(${a}, ${b}, 0, ${d}, ${cx - a * (DW / 2)}, ${cy - b * (DW / 2) - d * (DH / 2)})`;
+  });
+  const sceneDim = useP(p, [0.272, 0.3, 0.55, 0.6], [1, 0.25, 0.25, 1]);
+
+  // ── Act 3: board the rocket, lift off ────────────────────────────────
+  const rocketBuild = useP(p, [0.66, 0.72], [0, 1]);
+  const board = useP(p, [0.72, 0.78], [0, 1]);
+  const panelScale = useTransform(board, (t) => 1 - 0.93 * smooth(t));
+  const panelOpacity = useP(p, [0.765, 0.785], [1, 0]);
+  const boardX = useTransform(board, (t) => (padTop[0] - SCX) * smooth(t));
+  const boardY = useTransform(board, (t) => (padTop[1] + PORT_Y - SCY) * smooth(t));
+  const porthole = useP(p, [0.77, 0.79], [0, 1]);
+  const flame = useP(p, [0.79, 0.815], [0, 1]);
+  const liftY = useTransform(p, (v) => lift(v));
+  const smoke = useP(p, [0.8, 0.9], [0.2, 1.6]);
+  const smokeOpacity = useP(p, [0.8, 0.84, 0.92], [0, 0.55, 0]);
+
+  // ── Act 4: through the porthole, into the wordmark ───────────────────
+  const reveal = useTransform([p, sw, sh], ([pv, wv, hv]) => {
+    const v = Number(pv);
+    const W = Number(wv);
+    const H = Number(hv);
+    if (v <= B.reveal[0]) return "circle(0px at 50% 50%)";
+    const r0 = PORT_R * camera(v).z * zoomBoost(W) * viewScale(W, H);
+    const r = lerp(r0, Math.hypot(W, H) / 2 + 2, span(v, ...B.reveal) ** 1.6);
+    return `circle(${r.toFixed(1)}px at 50% 50%)`;
+  });
+  const markO = useP(p, [0.955, 0.99], [0, 1]);
+  const markScale = useP(p, [0.945, 1], [0.86, 1]);
+  // The porthole darkens as the camera reaches it, so the reveal is seamless.
+  const portDark = useP(p, [0.9, 0.935], [0, 1]);
 
   const viewOrigin = (x: number, y: number) => ({ originX: `${x}px`, originY: `${y}px`, transformBox: "view-box" as const });
 
   return (
-    <div ref={ref} className="relative h-[520vh]">
-      <div className="sticky top-14 h-[calc(100svh-3.5rem)] overflow-hidden">
+    <div ref={ref} className="relative h-[620vh]">
+      <div ref={stage} className="sticky top-14 h-[calc(100svh-3.5rem)] overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <DarkDots />
         </div>
@@ -247,12 +541,13 @@ export function LaunchStory({ steps, title }: { steps: Step[]; title: React.Reac
           ))}
         </ol>
 
-        <svg
+        <motion.svg
           viewBox="0 0 1200 800"
           preserveAspectRatio={narrow ? "xMidYMid meet" : "xMidYMid slice"}
-          className="absolute inset-0 size-full"
+          className="absolute inset-0 size-full font-sans"
+          style={{ opacity: sceneDim }}
           role="img"
-          aria-label="Two people choose a website together, tailor it, and launch it on a rocket"
+          aria-label="Two people choose a website, it's tailored to their brand, then launched on a rocket"
         >
           <defs>
             <linearGradient id="ls-rocket" x1="0" x2="1">
@@ -271,51 +566,31 @@ export function LaunchStory({ steps, title }: { steps: Step[]; title: React.Reac
             </radialGradient>
           </defs>
 
-          <motion.g style={{ transform: camera, originX: 0.5, originY: 0.5, transformBox: "view-box" }}>
+          <motion.g style={{ transform: cameraT, originX: 0.5, originY: 0.5, transformBox: "view-box" }}>
             {/* Platform */}
             <ellipse cx={600} cy={560} rx={440} ry={150} fill="rgba(0,0,0,0.3)" />
             <Block x={-6} y={-4} z={-0.7} w={12} d={9} h={0.7} tone={T.slab} />
             <Block x={-6} y={-4} z={0} w={12} d={0.25} h={0.08} tone={T.slabEdge} />
 
-            {/* Website panel: stand, frame, and the screen with its content */}
-            <motion.g style={{ opacity: panelOpacity, scale: panelScale, x: boardX, y: boardY, ...viewOrigin(panelCenter[0], panelCenter[1]) }}>
+            {/* Website screen: stand, frame, and the site itself */}
+            <motion.g style={{ opacity: panelOpacity, scale: panelScale, x: boardX, y: boardY, ...viewOrigin(SCX, SCY) }}>
               <Block x={-0.25} y={PANEL.y - 0.05} z={0} w={0.5} d={0.3} h={PANEL.z0} tone={T.frame} />
               <Block x={-1.1} y={PANEL.y - 0.4} z={0} w={2.2} d={1} h={0.12} tone={T.frame} />
               <Block x={PANEL.x0 - 0.12} y={PANEL.y - 0.06} z={PANEL.z0 - 0.12} w={PW + 0.24} d={0.22} h={PH + 0.24} tone={T.frame} />
-              <ellipse cx={panelCenter[0]} cy={panelCenter[1]} rx={280} ry={200} fill="url(#ls-glow)" />
+              <ellipse cx={SCX} cy={SCY} rx={280} ry={200} fill="url(#ls-glow)" />
               <g transform={panelMatrix}>
-                <motion.rect x={0} y={0} width={PW} height={PH} rx={0.12} fill="#efebe2" style={{ opacity: screenOn }} />
-                <rect x={0} y={0} width={PW} height={PH} rx={0.12} fill="none" stroke="#5c5a55" strokeWidth={0.04} />
-                <rect x={0} y={0} width={PW} height={0.42} fill="#d9d4ca" />
-                {[0.28, 0.5, 0.72].map((cx) => (
-                  <circle key={cx} cx={cx} cy={0.21} r={0.07} fill="#9d988e" />
-                ))}
-                <rect x={1.2} y={0.11} width={3.6} height={0.2} rx={0.1} fill="#eae6dd" />
-                <motion.rect x={0.3} y={0.62} width={0.9} height={0.22} rx={0.05} fill="#2b2a27" style={{ opacity: logo }} />
-                {[3.6, 4.3, 5.0].map((x) => (
-                  <rect key={x} x={x} y={0.68} width={0.5} height={0.09} rx={0.04} fill="#b9b4aa" />
-                ))}
-                <rect x={0.3} y={1.1} width={2.8} height={2.1} rx={0.08} fill="#d9d4ca" />
-                <motion.g style={{ opacity: heroFill }}>
-                  <rect x={0.3} y={1.1} width={2.8} height={2.1} rx={0.08} fill="#3b3a36" />
-                  <circle cx={2.4} cy={1.65} r={0.28} fill="#d9d4ca" />
-                  <path d="M0.4 3.1 L1.4 2.1 L2.1 2.7 L2.5 2.4 L3.0 3.1Z" fill="#6d6a63" />
-                </motion.g>
-                <motion.rect x={3.4} y={1.15} width={2.6} height={0.34} rx={0.06} fill="#2b2a27" style={{ scaleX: line1, originX: 0 }} />
-                <motion.rect x={3.4} y={1.65} width={2.2} height={0.14} rx={0.05} fill="#8f8a80" style={{ scaleX: line2, originX: 0 }} />
-                <motion.rect x={3.4} y={1.92} width={1.9} height={0.14} rx={0.05} fill="#8f8a80" style={{ scaleX: line3, originX: 0 }} />
-                <motion.rect x={3.4} y={2.45} width={1.2} height={0.36} rx={0.18} fill="#2b2a27" style={{ opacity: cta }} />
-                <rect x={0.3} y={3.5} width={5.8} height={0.1} rx={0.05} fill="#d0cbc1" />
+                <SiteArt s={site} />
+                <motion.rect width={DW} height={DH} rx={24} fill="#1a1a19" style={{ opacity: screenDim }} />
                 <motion.rect
-                  x={-0.12}
-                  y={-0.12}
-                  width={PW + 0.24}
-                  height={PH + 0.24}
-                  rx={0.2}
+                  x={-24}
+                  y={-24}
+                  width={DW + 48}
+                  height={DH + 48}
+                  rx={40}
                   fill="none"
                   stroke="#f3efe6"
-                  strokeWidth={0.06}
-                  strokeDasharray="0.22 0.16"
+                  strokeWidth={12}
+                  strokeDasharray="44 32"
                   style={{ opacity: selected }}
                 />
               </g>
@@ -323,7 +598,7 @@ export function LaunchStory({ steps, title }: { steps: Step[]; title: React.Reac
 
             {/* Launch pad; the rocket assembles on it, then lifts off */}
             <Block x={PAD.x} y={PAD.y} z={0} w={1.8} d={1.8} h={0.35} tone={T.pad} />
-            <motion.g style={{ y: lift }}>
+            <motion.g style={{ y: liftY }}>
               <motion.g style={{ opacity: flame, scaleY: flame, ...viewOrigin(padTop[0], padTop[1]) }}>
                 <path
                   d={`M${padTop[0] - 22} ${padTop[1] - 4} Q${padTop[0]} ${padTop[1] + 150} ${padTop[0] + 22} ${padTop[1] - 4} Z`}
@@ -343,12 +618,13 @@ export function LaunchStory({ steps, title }: { steps: Step[]; title: React.Reac
                   <path d="M-6 -60 L6 -60 L8 6 L-8 6 Z" fill="#4c4a46" />
                   <rect x={-30} y={-14} width={60} height={10} rx={3} fill="#4c4a46" />
                   <circle cx={0} cy={PORT_Y} r={21} fill="#4c4a46" />
-                  <circle cx={0} cy={PORT_Y} r={15} fill="#1d1c1a" />
+                  <circle cx={0} cy={PORT_Y} r={PORT_R} fill="#1d1c1a" />
                   <motion.g style={{ opacity: porthole }}>
-                    <circle cx={0} cy={PORT_Y} r={15} fill="#efebe2" />
+                    <circle cx={0} cy={PORT_Y} r={PORT_R} fill="#efebe2" />
                     <rect x={-8} y={PORT_Y - 6} width={16} height={12} rx={1.5} fill="#3b3a36" />
                     <rect x={-8} y={PORT_Y - 6} width={16} height={3} fill="#9d988e" />
                   </motion.g>
+                  <motion.circle cx={0} cy={PORT_Y} r={PORT_R} fill="#120f17" style={{ opacity: portDark }} />
                 </g>
               </motion.g>
             </motion.g>
@@ -366,73 +642,72 @@ export function LaunchStory({ steps, title }: { steps: Step[]; title: React.Reac
               ))}
             </motion.g>
 
-            {/* Person A (left), whose arm swings up to point at the screen */}
-            <Person
-              x={PA.x}
-              y={PA.y}
-              shirt={T.shirtA}
-              pants={T.pantsA}
-              arm={
-                <>
-                  <motion.g style={{ opacity: pointRest }}>
-                    <Block x={PA.x + 0.86} y={PA.y} z={1.45} w={0.24} d={0.36} h={1.05} tone={T.shirtA} />
-                  </motion.g>
-                  <motion.g style={{ opacity: point }}>
-                    <Block x={PA.x + 0.86} y={PA.y} z={2.2} w={1.15} d={0.32} h={0.26} tone={T.shirtA} />
-                    <Block x={PA.x + 1.98} y={PA.y + 0.02} z={2.2} w={0.22} d={0.28} h={0.24} tone={T.skin} />
-                  </motion.g>
-                </>
-              }
-            />
-
-            {/* Launch pedestal beside person B */}
-            <Block x={2.75} y={2.1} z={0} w={0.7} d={0.7} h={1.15} tone={T.frame} />
-            <motion.g style={{ y: press }}>
-              <Block x={2.92} y={2.27} z={1.15} w={0.36} d={0.36} h={0.16} tone={T.button} />
-            </motion.g>
-            <motion.ellipse cx={buttonAt[0]} cy={buttonAt[1]} rx={22} ry={10} fill="#f3efe6" style={{ opacity: glow }} />
-
-            {/* Person B (right), who reaches out to press launch */}
-            <Person
-              x={PB.x}
-              y={PB.y}
-              shirt={T.shirtB}
-              pants={T.pantsB}
-              arm={
-                <>
-                  <motion.g style={{ opacity: reachRest }}>
-                    <Block x={PB.x + 0.86} y={PB.y} z={1.45} w={0.24} d={0.36} h={1.05} tone={T.shirtB} />
-                  </motion.g>
-                  <motion.g style={{ opacity: reach }}>
-                    <Block x={PB.x - 0.3} y={PB.y + 0.22} z={1.55} w={0.26} d={1.5} h={0.26} tone={T.shirtB} />
-                  </motion.g>
-                </>
-              }
-            />
-
-            <Bubble o={bubbleA} at={proj(PA.x + 0.4, PA.y + 0.2, 4.2)} kind="lines" />
-            <Bubble o={bubbleB} at={proj(PB.x + 0.4, PB.y + 0.2, 4.2)} kind="dots" />
-            <Bubble o={bubbleThat} at={proj(PB.x + 0.4, PB.y + 0.2, 4.2)} kind="check" />
-
-            {/* It's live */}
-            <motion.g style={{ opacity: live, y: liveY }}>
-              <rect x={470} y={150} width={260} height={52} rx={26} fill="#efebe2" />
-              <circle cx={500} cy={176} r={7} fill="#2b2a27" />
-              <text x={518} y={182.5} fill="#2b2a27" fontSize={18} fontFamily="var(--font-geist), sans-serif">
-                yourbusiness.ph is live
-              </text>
+            <motion.g style={{ opacity: people }}>
+              {/* Person A (left), whose arm swings up to point at the screen */}
+              <Person
+                x={PA.x}
+                y={PA.y}
+                shirt={T.shirtA}
+                pants={T.pantsA}
+                arm={
+                  <>
+                    <motion.g style={{ opacity: pointRest }}>
+                      <Block x={PA.x + 0.86} y={PA.y} z={1.45} w={0.24} d={0.36} h={1.05} tone={T.shirtA} />
+                    </motion.g>
+                    <motion.g style={{ opacity: point }}>
+                      <Block x={PA.x + 0.86} y={PA.y} z={2.2} w={1.15} d={0.32} h={0.26} tone={T.shirtA} />
+                      <Block x={PA.x + 1.98} y={PA.y + 0.02} z={2.2} w={0.22} d={0.28} h={0.24} tone={T.skin} />
+                    </motion.g>
+                  </>
+                }
+              />
+              {/* Person B (right) */}
+              <Person
+                x={PB.x}
+                y={PB.y}
+                shirt={T.shirtB}
+                pants={T.pantsB}
+                arm={<Block x={PB.x + 0.86} y={PB.y} z={1.45} w={0.24} d={0.36} h={1.05} tone={T.shirtB} />}
+              />
+              <Bubble o={bubbleA} at={proj(PA.x + 0.4, PA.y + 0.2, 4.2)} kind="lines" />
+              <Bubble o={bubbleB} at={proj(PB.x + 0.4, PB.y + 0.2, 4.2)} kind="dots" />
+              <Bubble o={bubbleThat} at={proj(PB.x + 0.4, PB.y + 0.2, 4.2)} kind="check" />
             </motion.g>
           </motion.g>
-        </svg>
+        </motion.svg>
 
         {/* A soft fade so the narration always sits on calm ground. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[34%] bg-linear-to-t from-ink via-ink/70 to-ink/0" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[30%] bg-linear-to-t from-ink via-ink/70 to-ink/0" />
+        {/* The same site, full size, while it's edited */}
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 left-0 overflow-hidden rounded-[24px] shadow-[0_40px_120px_rgba(0,0,0,0.55)]"
+          style={{ width: DW, height: DH, opacity: overlayO, transform: overlayT, transformOrigin: "0 0" }}
+        >
+          <svg viewBox={`0 0 ${DW} ${DH}`} width={DW} height={DH} className="block font-sans">
+            <SiteArt s={site} />
+            <Editor p={p} />
+          </svg>
+        </motion.div>
+
         {/* Cinematic narration */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-[8%] mx-auto h-[3em] max-w-4xl px-6">
+        <div className="pointer-events-none absolute inset-x-0 bottom-[7%] mx-auto h-[3em] max-w-4xl px-6">
           {LINES.map((l) => (
             <Line key={l.text} p={p} text={l.text} range={l.range} />
           ))}
         </div>
+
+        {/* Through the porthole: the Atelier wordmark */}
+        <motion.div
+          aria-hidden="true"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#120f17]"
+          style={{ clipPath: reveal }}
+        >
+          <motion.div className="flex flex-col items-center" style={{ opacity: markO, scale: markScale }}>
+            <span className="text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] text-[#f4f1ea]">{brand}</span>
+            <span className="mt-6 text-[13px] tracking-[0.32em] text-[#f4f1ea]/60 uppercase sm:text-[14px]">Website library</span>
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   );

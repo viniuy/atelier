@@ -155,12 +155,15 @@ export default function HomePage() {
       <BandReveal id="process" labelledBy="process-title" className="relative isolate mt-20 scroll-mt-16 overflow-clip bg-ink text-paper">
         <LaunchStory
           steps={steps}
+          brand={site.name}
           title={
             <h2 id="process-title" className="text-[13px] font-medium tracking-[0.24em] text-[#a8a6a0] uppercase">
               From preview to launch
             </h2>
           }
         />
+        {/* Continues the wordmark the story lands on. */}
+        <div className="bg-[#120f17]">
         <div className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
           <BuildRule dark />
           <FadeUp delay={0.2} className="flex flex-wrap items-center justify-between gap-6 pt-10">
@@ -174,6 +177,7 @@ export default function HomePage() {
               Start browsing <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </FadeUp>
+        </div>
         </div>
       </BandReveal>
     </>
