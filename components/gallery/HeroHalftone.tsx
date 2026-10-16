@@ -12,11 +12,12 @@ import HalftoneReveal from "@/components/reactbits/HalftoneReveal";
  * search). MorphField sets --morph-leave on that h1 as the particles take
  * over on scroll, and this layer fades out at the same moment.
  */
-export function HeroHalftone({ paper = "#f4f3ef", ink = "#1a1a19" }: { paper?: string; ink?: string }) {
+export function HeroHalftone({ paper = "#120f17", ink = "#f4f1ea" }: { paper?: string; ink?: string }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [src, setSrc] = useState<string>();
-  // Dot size follows the word size: fine dots on phones, bolder on desktop.
-  const [cell, setCell] = useState(7);
+  // Dot size follows the word size: 6px (as specified) on desktop, finer on
+  // phones so the small word stays readable.
+  const [cell, setCell] = useState(6);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -44,7 +45,7 @@ export function HeroHalftone({ paper = "#f4f3ef", ink = "#1a1a19" }: { paper?: s
       ctx.textBaseline = "middle";
       ctx.fillText(h1.textContent?.trim() ?? "", r.width / 2, r.height / 2 + parseFloat(cs.fontSize) * 0.04);
       if (cancelled) return;
-      setCell(Math.min(7, Math.max(3.5, parseFloat(cs.fontSize) / 30)));
+      setCell(Math.min(6, Math.max(3.5, parseFloat(cs.fontSize) / 30)));
       setSrc(c.toDataURL("image/png"));
     };
 
@@ -75,20 +76,26 @@ export function HeroHalftone({ paper = "#f4f3ef", ink = "#1a1a19" }: { paper?: s
       {src && (
         <HalftoneReveal
           src={src}
-          fit="contain"
           mode="mono"
           shape="dot"
           cellSize={cell}
           angle={45}
-          dotScale={1.05}
           inkColor={ink}
           paperColor={paper}
-          contrast={1.4}
-          brightness={0.1}
-          revealRadius={150}
+          revealRadius={160}
+          dotScale={1}
+          contrast={1.1}
+          brightness={0}
+          invert={false}
+          roughness={0}
+          misregistration={0}
+          fit="contain"
+          accentColor="#ff4f2a"
           softness={0.6}
           linger={1.2}
-          clickBurst={false}
+          reverse={false}
+          wander={false}
+          clickBurst
           intro
         />
       )}
