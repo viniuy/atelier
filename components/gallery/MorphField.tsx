@@ -336,10 +336,16 @@ export function MorphField() {
       // (matters on short phone screens).
       const sy = window.scrollY;
       const settle = vh * 0.45;
-      // The hero hand-off starts early (vh * 1.3) so the word breaks apart
-      // while it's on screen; later morphs start as their anchor scrolls in.
+      // The hero word stays whole while you scroll it up, and only breaks
+      // apart once it starts leaving the frame (its top reaches the header).
+      // That moment is expressed as where the next anchor sits then.
+      // Later morphs start as their anchor scrolls in.
+      const headerH = document.querySelector("header")?.getBoundingClientRect().bottom ?? 56;
       const enterAt = (i: number) =>
-        Math.max(settle + 1, Math.min(i === 1 ? vh * 1.3 : vh * 0.95, centers[i] + sy - 40));
+        Math.max(
+          settle + 1,
+          i === 1 ? centers[1] - rects[0].top + headerH : Math.min(vh * 0.95, centers[i] + sy - 40),
+        );
       let k = 0;
       for (let i = 0; i < anchors.length; i++) if (centers[i] < enterAt(i)) k = i;
       let from = k;
