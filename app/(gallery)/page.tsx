@@ -92,15 +92,9 @@ export default function HomePage() {
       <section id="templates" aria-labelledby="templates-title" className="scroll-mt-16 border-t border-line">
         <span id="industries" className="block scroll-mt-16" aria-hidden="true" />
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
-          <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
-            <h2 id="templates-title" className="text-[clamp(1.6rem,3vw,2.1rem)] font-semibold tracking-[-0.025em]">
-              Pick an industry
-            </h2>
-            <p className="text-[14px] text-muted">
-              {live.length === 1 ? "1 industry" : `${live.length} industries`} live, {categories.length - live.length} on
-              the way
-            </p>
-          </div>
+          <h2 id="templates-title" className="sr-only">
+            Templates by industry
+          </h2>
           <CategoryWheel
             categories={categories.map((c) => ({
               slug: c.slug,

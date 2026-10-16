@@ -336,7 +336,10 @@ export function MorphField() {
       // (matters on short phone screens).
       const sy = window.scrollY;
       const settle = vh * 0.45;
-      const enterAt = (i: number) => Math.max(settle + 1, Math.min(vh * 1.3, centers[i] + sy - 40));
+      // The hero hand-off starts early (vh * 1.3) so the word breaks apart
+      // while it's on screen; later morphs start as their anchor scrolls in.
+      const enterAt = (i: number) =>
+        Math.max(settle + 1, Math.min(i === 1 ? vh * 1.3 : vh * 0.95, centers[i] + sy - 40));
       let k = 0;
       for (let i = 0; i < anchors.length; i++) if (centers[i] < enterAt(i)) k = i;
       let from = k;
@@ -395,7 +398,9 @@ export function MorphField() {
           // proportional to its x within the departing shape.
           const delay = (pa.x / Math.max(1, A.w)) * 0.35 + seedDir[i].jitter * 0.1;
           const ti = smooth(clamp01((t - delay) / (1 - 0.45)));
-          lift = Math.sin(Math.PI * ti);
+          // Full scatter cloud for the hero; a tighter one between sections
+          // so it doesn't sprawl over the content in between.
+          lift = Math.sin(Math.PI * ti) * (from === 0 ? 1 : 0.45);
           x = ra.left + pa.x + (rb.left + pb.x - (ra.left + pa.x)) * ti + seedDir[i].dx * lift;
           y = ra.top + pa.y + (rb.top + pb.y - (ra.top + pa.y)) * ti + seedDir[i].dy * lift;
         }

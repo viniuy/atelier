@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import CardSwap, { Card } from "@/components/reactbits/CardSwap";
 import type { TemplateCardData } from "@/lib/types";
 
@@ -73,34 +73,16 @@ export function TemplateStack({ items, label }: { items: TemplateCardData[]; lab
         ))}
       </CardSwap>
 
-      <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between" aria-live="polite">
-        <div className="min-w-0">
-          <p className="text-[17px] font-medium">
-            {t.name} <span className="font-normal text-muted">{front + 1} / {items.length}</span>
-          </p>
-          <p className="mt-1 max-w-md text-[14px] leading-relaxed text-muted">{t.tagline}</p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-5">
-          <a
-            href={`/preview/${t.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[14px] underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-          >
-            Full screen <ArrowUpRight className="size-3.5" aria-hidden="true" />
-          </a>
-          <Link
-            href={`/t/${t.slug}`}
-            prefetch
-            className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2.5 text-[14px] font-medium text-paper transition-colors hover:bg-ink-2"
-          >
-            Open template <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
+      <div className="mt-8 flex justify-center">
+        <Link
+          href={`/t/${t.slug}`}
+          prefetch
+          aria-label={`Open template: ${t.name}`}
+          className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
+        >
+          Open template <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
       </div>
-      <p className="mt-5 text-[13px] text-muted">
-        Drag the front card away to see the next one, or use the arrow keys.
-      </p>
     </div>
   );
 }
