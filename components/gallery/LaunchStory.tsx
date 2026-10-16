@@ -12,7 +12,8 @@ import { DarkDots } from "./Backgrounds";
  *      it's edited live: headline typed, image, logo, button, sections.
  *   3. The site shrinks back into the scene (the people have gone), boards a
  *      rocket, and the rocket flies up with the camera following.
- *   4. The camera pushes through the porthole into the Atelier wordmark.
+ *   4. The camera pushes through the porthole into darkness, and the page
+ *      glides on to the hero below (same colour), so it reads as one space.
  *
  * One cinematic line of text narrates it. The story moves in slides: while
  * it's pinned, a scroll gesture (one wheel notch, an arrow key, or a
@@ -511,7 +512,7 @@ function SmokePuff({ dx, dy, r, spread, scale }: { dx: number; dy: number; r: nu
   );
 }
 
-export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: React.ReactNode; brand: string }) {
+export function LaunchStory({ steps, title }: { steps: Step[]; title: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const p = useMotionValue(0);
@@ -591,8 +592,29 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
         onComplete: () => {
           busy = false;
           acc = 0;
+          if (launch) {
+            glideOut();
+            return;
+          }
           // A step asked for near the end plays straight after.
           if (queued) go(idx + queued);
+        },
+      });
+    };
+    /** After the launch: carry the page on to whatever follows (the hero). */
+    const glideOut = () => {
+      if (reduce) return;
+      const { start } = geo();
+      const target = start + box.offsetHeight;
+      quietUntil = performance.now() + 1500;
+      busy = true;
+      anim = animate(window.scrollY, target, {
+        duration: 1.3,
+        ease: [0.37, 0, 0.63, 1],
+        onUpdate: (y) => window.scrollTo({ top: y, behavior: "instant" }),
+        onComplete: () => {
+          busy = false;
+          inside = false;
         },
       });
     };
@@ -774,8 +796,6 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
     const r = lerp(r0, Math.hypot(W, H) / 2 + 2, span(v, ...B.reveal) ** 1.6);
     return `circle(${r.toFixed(1)}px at 50% 50%)`;
   });
-  const markO = useP(p, [0.955, 0.99], [0, 1]);
-  const markScale = useP(p, [0.945, 1], [0.86, 1]);
   // The porthole darkens as the camera reaches it, so the reveal is seamless.
   const portDark = useP(p, [0.91, 0.942], [0, 1]);
 
@@ -981,17 +1001,8 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
           ))}
         </div>
 
-        {/* Through the porthole: the Atelier wordmark */}
-        <motion.div
-          aria-hidden="true"
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#120f17]"
-          style={{ clipPath: reveal }}
-        >
-          <motion.div className="flex flex-col items-center" style={{ opacity: markO, scale: markScale }}>
-            <span className="text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] text-[#f4f1ea]">{brand}</span>
-            <span className="mt-6 text-[13px] tracking-[0.32em] text-[#f4f1ea]/60 uppercase sm:text-[14px]">Website library</span>
-          </motion.div>
-        </motion.div>
+        {/* Through the porthole, into the hero's colour */}
+        <motion.div aria-hidden="true" className="absolute inset-0 z-20 bg-[#120f17]" style={{ clipPath: reveal }} />
       </div>
     </div>
   );

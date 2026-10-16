@@ -14,6 +14,7 @@ import {
 } from "@/components/gallery/Build";
 import { LaunchStory } from "@/components/gallery/LaunchStory";
 import { MorphField } from "@/components/gallery/MorphField";
+import { HeroHalftone } from "@/components/gallery/HeroHalftone";
 import { showcase } from "@/data/showcase";
 
 const steps = [
@@ -42,10 +43,6 @@ export default function HomePage() {
     <>
       <MorphField />
 
-      <h1 className="sr-only">
-        {site.name}: website library
-      </h1>
-
       <BandReveal
         id="process"
         labelledBy="process-title"
@@ -53,7 +50,6 @@ export default function HomePage() {
       >
         <LaunchStory
           steps={steps}
-          brand={site.name}
           title={
             <h2
               id="process-title"
@@ -64,6 +60,33 @@ export default function HomePage() {
           }
         />
       </BandReveal>
+
+      {/* The story ends through the porthole in this same colour, then
+          glides down to here. */}
+      <section
+        id="hero"
+        className="relative flex min-h-[calc(100svh-3.5rem)] scroll-mt-14 flex-col items-center justify-center bg-[#120f17] px-4 text-center text-[#f4f1ea]"
+      >
+        <h1
+          data-morph="word"
+          data-morph-rest="hide"
+          data-morph-color="#f4f1ea"
+          className="relative text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] transition-colors duration-500"
+        >
+          {site.name}
+          <HeroHalftone />
+        </h1>
+        <p className="relative z-10 mt-6 text-[13px] tracking-[0.32em] text-[#f4f1ea]/60 uppercase sm:text-[14px]">
+          Website library
+        </p>
+        <Link
+          href="#templates"
+          className="absolute bottom-8 flex flex-col items-center gap-3 text-[12px] tracking-[0.2em] text-[#f4f1ea]/60 uppercase transition-colors hover:text-[#f4f1ea]"
+        >
+          Scroll
+          <span className="h-10 w-px bg-[#f4f1ea]/30" aria-hidden="true" />
+        </Link>
+      </section>
 
       <section aria-labelledby="library-title">
         <BuildRule />
