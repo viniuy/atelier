@@ -62,7 +62,7 @@ function paint(ctx: CanvasRenderingContext2D, shape: Shape, w: number, h: number
     return;
   }
 
-  const lw = Math.max(3, s * 0.035);
+  const lw = Math.max(5, s * 0.055);
   ctx.lineWidth = lw;
   const pad = lw;
 
@@ -158,40 +158,54 @@ function paint(ctx: CanvasRenderingContext2D, shape: Shape, w: number, h: number
   });
 }
 
-/** Sample ~n points from the painted mask. */
-function sample(shape: Shape, w: number, h: number, el: HTMLElement, n: number, seed: number): Pt[] {
+/**
+ * Sample the painted mask on an even grid, as dense as possible without
+ * exceeding n points. A clean grid (no jitter, no random thinning) is what
+ * makes the shapes read crisply. Returns the points plus the grid step,
+ * which sets the dot size.
+ */
+function sample(shape: Shape, w: number, h: number, el: HTMLElement, n: number, seed: number): { points: Pt[]; step: number } {
+  const empty = { points: [], step: 3 };
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(w));
   c.height = Math.max(1, Math.round(h));
   const ctx = c.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return [];
+  if (!ctx) return empty;
   paint(ctx, shape, c.width, c.height, el);
   const data = ctx.getImageData(0, 0, c.width, c.height).data;
+  const on = (x: number, y: number) => data[(Math.round(y) * c.width + Math.round(x)) * 4 + 3] > 128;
 
   let filled = 0;
   for (let i = 3; i < data.length; i += 4) if (data[i] > 128) filled++;
-  if (!filled) return [];
-  const step = Math.max(1.5, Math.sqrt(filled / n));
+  if (!filled) return empty;
 
-  const pts: Pt[] = [];
-  const rand = mulberry32(seed);
-  for (let y = 0; y < c.height; y += step) {
-    for (let x = 0; x < c.width; x += step) {
-      const jx = x + (rand() - 0.5) * step * 0.3;
-      const jy = y + (rand() - 0.5) * step * 0.3;
-      const px = Math.min(c.width - 1, Math.max(0, Math.round(jx)));
-      const py = Math.min(c.height - 1, Math.max(0, Math.round(jy)));
-      if (data[(py * c.width + px) * 4 + 3] > 128) pts.push({ x: jx, y: jy });
+  // Whole-pixel spacing keeps every gap identical. Start from the ideal
+  // spacing and widen until the grid fits in n.
+  let step = Math.max(3, Math.ceil(Math.sqrt(filled / n)));
+  let pts: Pt[] = [];
+  for (let tries = 0; tries < 40; tries++) {
+    pts = [];
+    const ox = Math.floor((c.width % step) / 2);
+    const oy = Math.floor((c.height % step) / 2);
+    for (let y = oy; y < c.height; y += step) {
+      for (let x = ox; x < c.width; x += step) if (on(x, y)) pts.push({ x, y });
     }
+    if (pts.length <= n) break;
+    step += 1;
   }
-  // Shuffle, then pad or trim to exactly n so every shape maps 1:1.
+  if (!pts.length) return empty;
+
+  // Shuffle so the mapping between shapes is mixed (that's what makes the
+  // cloud), then repeat points to reach exactly n. Repeats overlap exactly,
+  // so they're invisible until the shape breaks apart.
+  const rand = mulberry32(seed);
   for (let i = pts.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [pts[i], pts[j]] = [pts[j], pts[i]];
   }
-  const out = pts.slice(0, n);
-  while (out.length < n && pts.length) out.push(pts[out.length % pts.length]);
-  return out;
+  const out = pts.slice();
+  for (let i = 0; out.length < n; i++) out.push(pts[i % pts.length]);
+  return { points: out, step };
 }
 
 const noop = () => () => {};
@@ -219,9 +233,11 @@ export function MorphField() {
     const seedDir = Array.from({ length: N }, () => {
       const a = rand() * Math.PI * 2;
       const r = 60 + rand() * 260;
-      return { dx: Math.cos(a) * r, dy: Math.sin(a) * r - 40, alpha: 0.7 + rand() * 0.3, jitter: rand() };
+      return { dx: Math.cos(a) * r, dy: Math.sin(a) * r - 40, jitter: rand() };
     });
-    const pos = new Float32Array(N * 2);
+    // Cursor push, eased separately so it springs; the shape itself is glued
+    // to the scroll position with no smoothing (no lag behind the page).
+    const push = new Float32Array(N * 2);
     let anchors: Anchor[] = [];
     let ready = false;
     let raf = 0;
@@ -242,26 +258,21 @@ export function MorphField() {
           const r = el.getBoundingClientRect();
           if (r.width < 8 || r.height < 8) return null;
           const shape = el.dataset.morph as Shape;
+          const { points, step } = sample(shape, r.width, r.height, el, N, 11 + k);
           return {
             el,
             shape,
             color: hexToRgb(el.dataset.morphColor ?? "#1a1a19"),
-            size: Number(el.dataset.morphSize ?? 2.2),
-            points: sample(shape, r.width, r.height, el, N, 11 + k),
+            // Dot size follows the grid spacing so every shape has the same
+            // clean dot-to-gap ratio. data-morph-size overrides it.
+            size: el.dataset.morphSize ? Number(el.dataset.morphSize) : Math.max(1, Math.round(step * 0.6)),
+            points,
             w: r.width,
             h: r.height,
           } satisfies Anchor;
         })
         .filter((a): a is Anchor => !!a && a.points.length > 0);
 
-      if (!ready && anchors[0]) {
-        // Start assembled on the first anchor.
-        const r = anchors[0].el.getBoundingClientRect();
-        anchors[0].points.forEach((p, i) => {
-          pos[i * 2] = r.left + p.x;
-          pos[i * 2 + 1] = r.top + p.y;
-        });
-      }
       // The real text stays in the DOM for screen readers and search; hide
       // it visually only once the particle version is drawn.
       for (const a of anchors) {
@@ -303,37 +314,56 @@ export function MorphField() {
 
       ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
       ctx!.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+      const moving = !reduce && t > 0 && t < 1;
+      const half = size / dpr / 2;
+      // At rest the particles sit on whichever shape is settled.
+      const restOnB = from === to || t >= 1;
+      const rest = restOnB ? B.points : A.points;
+      const rr = restOnB ? rb : ra;
 
       for (let i = 0; i < N; i++) {
         const pa = A.points[i];
         const pb = B.points[i];
-        // Break apart left to right: each particle starts after a delay
-        // proportional to its x within the departing shape.
-        const delay = (pa.x / Math.max(1, A.w)) * 0.35 + seedDir[i].jitter * 0.1;
-        const ti = reduce ? t : smooth(clamp01((t - delay) / (1 - 0.45)));
-        const lift = reduce ? 0 : Math.sin(Math.PI * ti);
-        let tx = ra.left + pa.x + (rb.left + pb.x - (ra.left + pa.x)) * ti + seedDir[i].dx * lift;
-        let ty = ra.top + pa.y + (rb.top + pb.y - (ra.top + pa.y)) * ti + seedDir[i].dy * lift;
+        let x: number;
+        let y: number;
+        let lift = 0;
+        if (!moving) {
+          // At rest: exactly on the anchor, on its grid.
+          x = Math.round(rr.left) + rest[i].x;
+          y = Math.round(rr.top) + rest[i].y;
+        } else {
+          // Break apart left to right: each particle starts after a delay
+          // proportional to its x within the departing shape.
+          const delay = (pa.x / Math.max(1, A.w)) * 0.35 + seedDir[i].jitter * 0.1;
+          const ti = smooth(clamp01((t - delay) / (1 - 0.45)));
+          lift = Math.sin(Math.PI * ti);
+          x = ra.left + pa.x + (rb.left + pb.x - (ra.left + pa.x)) * ti + seedDir[i].dx * lift;
+          y = ra.top + pa.y + (rb.top + pb.y - (ra.top + pa.y)) * ti + seedDir[i].dy * lift;
+        }
 
-        // Gentle push away from the cursor.
+        // Gentle push away from the cursor, with a little spring.
+        let px = 0;
+        let py = 0;
         if (!reduce) {
-          const ddx = tx - pointer.x;
-          const ddy = ty - pointer.y;
+          const ddx = x - pointer.x;
+          const ddy = y - pointer.y;
           const d2 = ddx * ddx + ddy * ddy;
           if (d2 < 8100) {
             const d = Math.sqrt(d2) || 1;
-            const f = (1 - d / 90) * 22;
-            tx += (ddx / d) * f;
-            ty += (ddy / d) * f;
+            const f = (1 - d / 90) * 18;
+            px = (ddx / d) * f;
+            py = (ddy / d) * f;
           }
+          push[i * 2] += (px - push[i * 2]) * 0.2;
+          push[i * 2 + 1] += (py - push[i * 2 + 1]) * 0.2;
         }
-
-        const ease = reduce ? 1 : 0.2;
-        const x = (pos[i * 2] += (tx - pos[i * 2]) * ease);
-        const y = (pos[i * 2 + 1] += (ty - pos[i * 2 + 1]) * ease);
+        x += push[i * 2];
+        y += push[i * 2 + 1];
         if (y < -20 || y > vh + 20) continue;
-        ctx!.globalAlpha = seedDir[i].alpha * (1 - 0.45 * lift);
-        ctx!.fillRect(x * dpr, y * dpr, size, size);
+
+        if (moving) ctx!.globalAlpha = 1 - 0.5 * lift;
+        // Snap to device pixels so dots stay crisp.
+        ctx!.fillRect(Math.round((x - half) * dpr), Math.round((y - half) * dpr), Math.max(1, Math.round(size)), Math.max(1, Math.round(size)));
       }
       ctx!.globalAlpha = 1;
     }

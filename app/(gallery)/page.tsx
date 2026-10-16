@@ -39,7 +39,7 @@ export default function HomePage() {
       <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center px-4 text-center">
         <h1
           data-morph="word"
-          data-morph-size="2.4"
+         
           className="text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] transition-colors duration-500"
         >
           {site.name}
@@ -76,7 +76,7 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-          <div data-morph="browser" data-morph-size="2" aria-hidden="true" className="hidden h-[200px] w-[320px] md:block" />
+          <div data-morph="browser" aria-hidden="true" className="hidden h-[200px] w-[320px] md:block" />
         </div>
       </section>
 
@@ -123,7 +123,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-10">
-                <div data-morph="globe" data-morph-size="2" aria-hidden="true" className="hidden size-[150px] md:block" />
+                <div data-morph="globe" aria-hidden="true" className="hidden size-[150px] md:block" />
                 <Link href="/sites" className="text-[14px] text-muted underline-offset-4 hover:text-ink hover:underline">
                   View all
                 </Link>
@@ -156,7 +156,7 @@ export default function HomePage() {
             <div
               data-morph="grid"
               data-morph-count={categories.length}
-              data-morph-size="2"
+             
               aria-hidden="true"
               className="mt-14 hidden h-[110px] w-[210px] md:block"
             />
@@ -202,7 +202,7 @@ export default function HomePage() {
             <div
               data-morph="steps"
               data-morph-color="#e9e7e1"
-              data-morph-size="2"
+             
               aria-hidden="true"
               className="hidden h-[130px] w-[240px] md:block"
             />
