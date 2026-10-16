@@ -4,7 +4,9 @@ import { categories } from "@/data/categories";
 import { countByCategory, getTemplatesByCategory, templates, toCardData } from "@/data/templates";
 import { TemplateCard } from "@/components/gallery/TemplateCard";
 import { SiteCard } from "@/components/gallery/SiteCard";
-import { DarkDots, HeroDots } from "@/components/gallery/Backgrounds";
+import { DarkDots } from "@/components/gallery/Backgrounds";
+import { MorphField } from "@/components/gallery/MorphField";
+import { site } from "@/data/site";
 import { showcase } from "@/data/showcase";
 
 const steps = [
@@ -32,29 +34,49 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="relative isolate overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <HeroDots />
-        </div>
-        <div className="pointer-events-none mx-auto max-w-6xl px-4 pt-20 pb-20 sm:px-6 md:pt-32 md:pb-32 [&_a]:pointer-events-auto">
-        <h1 className="max-w-3xl text-[clamp(2.4rem,6vw,4.25rem)] leading-[1.04] font-semibold tracking-[-0.035em] text-balance">
-          Show a client their website before you build it.
+      <MorphField />
+
+      <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center px-4 text-center">
+        <h1
+          data-morph="word"
+          data-morph-size="2.4"
+          className="text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] transition-colors duration-500"
+        >
+          {site.name}
         </h1>
-        <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-muted">
-          Complete website templates for local businesses, sorted by industry. Open one, click around as if it were
-          live, and when a client says &ldquo;that one&rdquo;, we build their site on it.
-        </p>
-        <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
-          <Link
-            href="#templates"
-            className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
-          >
-            Browse templates <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-          <Link href="#process" className="text-[15px] underline decoration-line-strong underline-offset-4 hover:decoration-ink">
-            How it works
-          </Link>
-        </div>
+        <p className="mt-6 text-[13px] tracking-[0.32em] text-muted uppercase sm:text-[14px]">Website library</p>
+        <Link
+          href="#templates"
+          className="absolute bottom-8 flex flex-col items-center gap-3 text-[12px] tracking-[0.2em] text-muted uppercase transition-colors hover:text-ink"
+        >
+          Scroll
+          <span className="h-10 w-px bg-line-strong" aria-hidden="true" />
+        </Link>
+      </section>
+
+      <section aria-labelledby="library-title" className="border-t border-line">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-20 pb-6 sm:px-6 md:grid-cols-[1fr_auto]">
+          <div className="max-w-xl">
+            <h2 id="library-title" className="text-[clamp(1.9rem,4vw,2.75rem)] leading-[1.08] font-semibold tracking-[-0.035em] text-balance">
+              Show a client their website before you build it.
+            </h2>
+            <p className="mt-5 text-[17px] leading-relaxed text-muted">
+              Complete website templates for local businesses, sorted by industry. Open one, click around as if it were
+              live, and when a client says &ldquo;that one&rdquo;, we build their site on it.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+              <Link
+                href="#templates"
+                className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
+              >
+                Browse templates <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+              <Link href="#process" className="text-[15px] underline decoration-line-strong underline-offset-4 hover:decoration-ink">
+                How it works
+              </Link>
+            </div>
+          </div>
+          <div data-morph="browser" data-morph-size="2" aria-hidden="true" className="hidden h-[200px] w-[320px] md:block" />
         </div>
       </section>
 
@@ -91,7 +113,7 @@ export default function HomePage() {
       {showcase.length > 0 && (
         <section aria-labelledby="sites-title" className="border-t border-line">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-            <div className="mb-10 flex items-baseline justify-between gap-6">
+            <div className="mb-10 flex items-center justify-between gap-6">
               <div>
                 <h2 id="sites-title" className="text-[22px] font-semibold tracking-[-0.02em]">
                   Real sites
@@ -100,9 +122,12 @@ export default function HomePage() {
                   Live client work, plus the real businesses whose sites shaped our templates.
                 </p>
               </div>
-              <Link href="/sites" className="shrink-0 text-[14px] text-muted underline-offset-4 hover:text-ink hover:underline">
-                View all
-              </Link>
+              <div className="flex shrink-0 items-center gap-10">
+                <div data-morph="globe" data-morph-size="2" aria-hidden="true" className="hidden size-[150px] md:block" />
+                <Link href="/sites" className="text-[14px] text-muted underline-offset-4 hover:text-ink hover:underline">
+                  View all
+                </Link>
+              </div>
             </div>
             <ul className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-4">
               {[...showcase]
@@ -128,6 +153,13 @@ export default function HomePage() {
               {live.length === 1 ? "One industry is" : `${live.length} industries are`} live. The rest are being
               designed; ask if you need one sooner.
             </p>
+            <div
+              data-morph="grid"
+              data-morph-count={categories.length}
+              data-morph-size="2"
+              aria-hidden="true"
+              className="mt-14 hidden h-[110px] w-[210px] md:block"
+            />
           </div>
           <ul className="border-t border-line">
             {categories.map((c) => {
@@ -163,9 +195,18 @@ export default function HomePage() {
           <DarkDots />
         </div>
         <div className="pointer-events-none mx-auto max-w-6xl px-4 py-24 sm:px-6 [&_a]:pointer-events-auto">
-          <h2 id="process-title" className="max-w-xl text-[clamp(1.8rem,4vw,2.6rem)] leading-tight font-semibold tracking-[-0.03em]">
-            From preview to launch
-          </h2>
+          <div className="flex items-center justify-between gap-10">
+            <h2 id="process-title" className="max-w-xl text-[clamp(1.8rem,4vw,2.6rem)] leading-tight font-semibold tracking-[-0.03em]">
+              From preview to launch
+            </h2>
+            <div
+              data-morph="steps"
+              data-morph-color="#e9e7e1"
+              data-morph-size="2"
+              aria-hidden="true"
+              className="hidden h-[130px] w-[240px] md:block"
+            />
+          </div>
           <ol className="mt-14 grid gap-10 border-t border-white/10 pt-10 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((s, i) => (
               <li key={s.title}>
