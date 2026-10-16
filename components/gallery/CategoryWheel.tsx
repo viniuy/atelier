@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import OptionWheel from "@/components/reactbits/OptionWheel";
 import type { TemplateCardData } from "@/lib/types";
-import { TemplateCard } from "./TemplateCard";
+import { TemplateStack } from "./TemplateStack";
 
 export type WheelCategory = {
   slug: string;
@@ -81,13 +81,7 @@ export function CategoryWheel({ categories }: { categories: WheelCategory[] }) {
             </div>
 
             {c.live ? (
-              <ul className="grid gap-x-8 gap-y-14 sm:grid-cols-2">
-                {c.templates.map((t, i) => (
-                  <li key={t.slug}>
-                    <TemplateCard template={t} eager={i < 2} sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw" />
-                  </li>
-                ))}
-              </ul>
+              <TemplateStack items={c.templates} label={c.name} />
             ) : (
               <div className="rounded-xl border border-dashed border-line-strong px-6 py-16 sm:px-10">
                 <p className="text-[17px] font-medium">{c.name} templates are still being designed.</p>

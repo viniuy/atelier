@@ -46,7 +46,7 @@ Set `NEXT_PUBLIC_SITE_URL` (e.g. `https://atelier.yourdomain.com`) so shareable 
 
 | Route | Purpose |
 | --- | --- |
-| `/` | Particle "Atelier" hero, industry wheel with that industry's templates, real sites, process |
+| `/` | Particle "Atelier" hero, industry wheel with that industry's templates as a card deck, real sites, process |
 | `/c/[category]` | Filterable grid of a category's templates ("Coming soon" state for empty categories) |
 | `/t/[slug]` | Live preview in a Desktop / iPad / iPhone frame, details, palette, fonts, "I like this one" CTA, copy-client-link |
 | `/sites` | Real websites: your client work and labelled inspiration |
@@ -189,6 +189,7 @@ The shell follows the anti-"AI slop" checklists from [Impeccable](https://github
 
 - **Particle morph** (`components/gallery/MorphField.tsx`, no library): the home hero's "Atelier" is drawn as ~3,400 particles that break apart on scroll and reform into a symbol beside each section. Mark any element with `data-morph="word|browser|globe|grid|steps"` to make it a stop; `data-morph-color` and `data-morph-size` tune it. Scroll-scrubbed (reverses when scrolling up), skipped on phones except the hero, and it swaps shapes without the flight for reduced-motion users.
 - **[React Bits](https://reactbits.dev)** `OptionWheel`: the home page's industry picker (`components/gallery/CategoryWheel.tsx`), a curved wheel of categories beside the selected category's templates (or a coming-soon panel). Scroll, drag, click or use the arrow keys. Two local patches are marked `Atelier patch`: an accessible `label` prop, and at either end of the wheel the mouse wheel scrolls the page instead of being trapped.
+- **[React Bits](https://reactbits.dev)** `CardSwap`: the selected industry's templates as a swipeable 3D card deck (`components/gallery/TemplateStack.tsx`). Click a card behind to bring it forward, drag the front one away, arrow keys work; clicking the front card opens the template. Patched (marked `Atelier patch`) to drop its demo-only icon package and to take an accessible `label`.
 - **[React Bits](https://reactbits.dev)** `DotGrid` (`components/reactbits/`, vendored from the registry): the faint dot field behind the home hero and the dark process band, wrapped in `components/gallery/Backgrounds.tsx`. ESLint's React Compiler rules are relaxed for that folder only.
 - **[Motion](https://motion.dev)**: page fade, device-frame morphing, filter transitions. Respects the OS reduce-motion setting.
 - **[lucide](https://lucide.dev)**: icons. Brand marks (Messenger, Viber, WhatsApp, Facebook…) are simplified SVGs in `templates/_kit/BrandIcons.tsx`.
