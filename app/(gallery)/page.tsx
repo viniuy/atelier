@@ -5,8 +5,8 @@ import { countByCategory, getTemplatesByCategory, templates, toCardData } from "
 import { CategoryWheel } from "@/components/gallery/CategoryWheel";
 import { contactHrefForCategory, site } from "@/data/site";
 import { SiteCard } from "@/components/gallery/SiteCard";
-import { DarkDots } from "@/components/gallery/Backgrounds";
 import { BandReveal, BuildRule, FadeUp, RiseText, Stagger } from "@/components/gallery/Build";
+import { LaunchStory } from "@/components/gallery/LaunchStory";
 import { MorphField } from "@/components/gallery/MorphField";
 import { HeroHalftone } from "@/components/gallery/HeroHalftone";
 import { showcase } from "@/data/showcase";
@@ -152,40 +152,17 @@ export default function HomePage() {
         </section>
       )}
 
-      <BandReveal id="process" labelledBy="process-title" className="relative isolate mt-20 scroll-mt-16 overflow-hidden bg-ink text-paper">
-        <div className="absolute inset-0 -z-10">
-          <DarkDots />
-        </div>
-        <div className="pointer-events-none mx-auto max-w-6xl px-4 py-24 sm:px-6 [&_a]:pointer-events-auto">
-          <div className="flex items-center justify-between gap-10">
+      <BandReveal id="process" labelledBy="process-title" className="relative isolate mt-20 scroll-mt-16 overflow-clip bg-ink text-paper">
+        <LaunchStory
+          steps={steps}
+          title={
             <h2 id="process-title" className="max-w-xl text-[clamp(1.8rem,4vw,2.6rem)] leading-tight font-semibold tracking-[-0.03em]">
               <RiseText>From preview to launch</RiseText>
             </h2>
-            <div
-              data-morph="steps"
-              data-morph-color="#e9e7e1"
-             
-              aria-hidden="true"
-              className="hidden h-[130px] w-[240px] md:block"
-            />
-          </div>
-          <BuildRule dark className="mt-14" />
-          <Stagger
-            className="grid gap-10 pt-10 sm:grid-cols-2 lg:grid-cols-4"
-            delay={0.3}
-            step={0.12}
-            items={steps.map((st, i) => ({
-              key: st.title,
-              node: (
-                <>
-                  <span className="font-mono text-[13px] text-[#a8a6a0]">{i + 1}</span>
-                  <h3 className="mt-3 font-medium">{st.title}</h3>
-                  <p className="mt-2 text-[14px] leading-relaxed text-[#a8a6a0]">{st.body}</p>
-                </>
-              ),
-            }))}
-          />
-          <BuildRule dark className="mt-16" />
+          }
+        />
+        <div className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+          <BuildRule dark />
           <FadeUp delay={0.2} className="flex flex-wrap items-center justify-between gap-6 pt-10">
             <p className="text-[14px] text-[#a8a6a0]">
               {templates.length} templates across {live.length} {live.length === 1 ? "industry" : "industries"} so far.

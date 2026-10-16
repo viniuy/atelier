@@ -87,6 +87,16 @@ summary::-webkit-details-marker {
   }
 }
 
+/* Rocket flame flicker (LaunchStory). Disabled by the reduced-motion rule. */
+@keyframes atelier-flicker {
+  from {
+    transform: scaleY(0.82) scaleX(0.96);
+  }
+  to {
+    transform: scaleY(1.12) scaleX(1.04);
+  }
+}
+
 /* Horizontal scrollers without a visible scrollbar (carousels). */
 @utility no-scrollbar {
   scrollbar-width: none;
