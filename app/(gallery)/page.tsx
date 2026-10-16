@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { categories } from "@/data/categories";
 import { countByCategory, getTemplatesByCategory, templates, toCardData } from "@/data/templates";
-import { TemplateWheel } from "@/components/gallery/TemplateWheel";
+import { CategoryWheel } from "@/components/gallery/CategoryWheel";
+import { contactHrefForCategory, site } from "@/data/site";
 import { SiteCard } from "@/components/gallery/SiteCard";
 import { DarkDots } from "@/components/gallery/Backgrounds";
 import { MorphField } from "@/components/gallery/MorphField";
-import { site } from "@/data/site";
 import { showcase } from "@/data/showcase";
 
 const steps = [
@@ -86,29 +86,30 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div id="templates" className="scroll-mt-16">
-        {live.map((c) => {
-          const items = getTemplatesByCategory(c.slug).map(toCardData);
-          return (
-            <section key={c.slug} aria-labelledby={`cat-${c.slug}`} className="border-t border-line">
-              <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-                <div className="mb-10 flex items-baseline justify-between gap-6">
-                  <h2 id={`cat-${c.slug}`} className="text-[22px] font-semibold tracking-[-0.02em]">
-                    {c.name} <span className="font-normal text-muted">{items.length}</span>
-                  </h2>
-                  <Link
-                    href={`/c/${c.slug}`}
-                    className="text-[14px] text-muted underline-offset-4 hover:text-ink hover:underline"
-                  >
-                    View as grid
-                  </Link>
-                </div>
-                <TemplateWheel items={items} label={c.name} />
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      <section id="templates" aria-labelledby="templates-title" className="scroll-mt-16 border-t border-line">
+        <span id="industries" className="block scroll-mt-16" aria-hidden="true" />
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
+          <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
+            <h2 id="templates-title" className="text-[clamp(1.6rem,3vw,2.1rem)] font-semibold tracking-[-0.025em]">
+              Pick an industry
+            </h2>
+            <p className="text-[14px] text-muted">
+              {live.length === 1 ? "1 industry" : `${live.length} industries`} live, {categories.length - live.length} on
+              the way
+            </p>
+          </div>
+          <CategoryWheel
+            categories={categories.map((c) => ({
+              slug: c.slug,
+              name: c.name,
+              description: c.description,
+              live: c.status === "live" && (counts[c.slug] ?? 0) > 0,
+              templates: getTemplatesByCategory(c.slug).map(toCardData),
+              askHref: contactHrefForCategory(c.name),
+            }))}
+          />
+        </div>
+      </section>
 
       {showcase.length > 0 && (
         <section aria-labelledby="sites-title" className="border-t border-line">
@@ -142,53 +143,6 @@ export default function HomePage() {
           </div>
         </section>
       )}
-
-      <section id="industries" aria-labelledby="industries-title" className="scroll-mt-16 border-t border-line">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 md:grid-cols-[1fr_2fr]">
-          <div>
-            <h2 id="industries-title" className="text-[22px] font-semibold tracking-[-0.02em]">
-              Industries
-            </h2>
-            <p className="mt-3 max-w-xs text-[15px] leading-relaxed text-muted">
-              {live.length === 1 ? "One industry is" : `${live.length} industries are`} live. The rest are being
-              designed; ask if you need one sooner.
-            </p>
-            <div
-              data-morph="grid"
-              data-morph-count={categories.length}
-             
-              aria-hidden="true"
-              className="mt-14 hidden h-[110px] w-[210px] md:block"
-            />
-          </div>
-          <ul className="border-t border-line">
-            {categories.map((c) => {
-              const n = counts[c.slug] ?? 0;
-              const isLive = c.status === "live" && n > 0;
-              return (
-                <li key={c.slug} className="border-b border-line">
-                  <Link
-                    href={`/c/${c.slug}`}
-                    className="group grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-1 py-5 sm:grid-cols-[12rem_1fr_auto]"
-                  >
-                    <span className={isLive ? "font-medium" : "font-medium text-muted"}>{c.name}</span>
-                    <span className="order-3 col-span-2 text-[14px] text-muted sm:order-none sm:col-span-1">
-                      {c.description}
-                    </span>
-                    <span className="flex items-center gap-2 text-[13px] text-muted">
-                      {isLive ? `${n} templates` : "Coming soon"}
-                      <ArrowUpRight
-                        className="size-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ink"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </section>
 
       <section id="process" aria-labelledby="process-title" className="relative isolate mt-20 scroll-mt-16 overflow-hidden bg-ink text-paper">
         <div className="absolute inset-0 -z-10">
