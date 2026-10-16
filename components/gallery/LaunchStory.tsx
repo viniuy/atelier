@@ -699,11 +699,26 @@ export function LaunchStory({ steps, title }: { steps: Step[]; title: React.Reac
     ro.observe(box);
     const retry = setTimeout(onScroll, 400);
     window.addEventListener("load", onScroll);
+    // Blocking (non-passive) wheel/touch listeners make the browser wait for
+    // JavaScript before every scroll, so they're attached only while the
+    // story is on screen; the rest of the page scrolls freely.
+    let blocking = false;
+    const setBlocking = (on: boolean) => {
+      if (on === blocking) return;
+      blocking = on;
+      if (on) {
+        window.addEventListener("wheel", onWheel, { passive: false });
+        window.addEventListener("touchmove", onTouchMove, { passive: false });
+      } else {
+        window.removeEventListener("wheel", onWheel);
+        window.removeEventListener("touchmove", onTouchMove);
+      }
+    };
+    const io = new IntersectionObserver(([e]) => setBlocking(e.isIntersecting));
+    io.observe(box);
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("keydown", onKey);
     window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd);
     onScroll();
     return () => {
@@ -713,10 +728,10 @@ export function LaunchStory({ steps, title }: { steps: Step[]; title: React.Reac
       window.removeEventListener("load", onScroll);
       clearTimeout(accTimer);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("wheel", onWheel);
+      io.disconnect();
+      setBlocking(false);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
     };
   }, [p]);

@@ -18,6 +18,11 @@ import { createPortal } from "react-dom";
  *   data-morph-size="2.4"        particle size (CSS px) at this anchor
  *
  * Anchors with no size (e.g. `hidden md:block` on phones) are skipped.
+ *
+ * Drawing: while a shape is at rest it's painted on a small canvas placed in
+ * the page over its anchor, so the browser scrolls it together with the text
+ * (a screen-fixed canvas redrawn from JS always lags native scrolling by a
+ * frame or more). The full-screen fixed canvas is only used mid-flight.
  * Reduced motion: shapes swap without the flight or the scatter.
  */
 
@@ -266,6 +271,15 @@ export function MorphField() {
     let raf = 0;
     let dpr = 1;
     const pointer = { x: -9999, y: -9999 };
+    // Page-anchored canvas for the shape at rest (see the note at the top).
+    const PAD = 36;
+    const local = document.createElement("canvas");
+    local.setAttribute("aria-hidden", "true");
+    Object.assign(local.style, { position: "absolute", left: "0", top: "0", pointerEvents: "none", zIndex: "40", display: "none" });
+    document.body.appendChild(local);
+    const lctx = local.getContext("2d")!;
+    let localKey = "";
+    let localOn = false;
     // Word anchors whose real text is currently hidden behind particles.
     const hidden = new Set<HTMLElement>();
     /**
@@ -379,7 +393,6 @@ export function MorphField() {
       const size = (A.size + (B.size - A.size) * smooth(t)) * dpr;
 
       ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
-      ctx!.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
       const moving = !reduce && t > 0 && t < 1;
       // At rest on an anchor that draws itself (the halftone hero), keep the
       // physics running but don't paint the particles.
@@ -390,6 +403,42 @@ export function MorphField() {
       const restOnB = from === to || t >= 1;
       const rest = restOnB ? B.points : A.points;
       const rr = restOnB ? rb : ra;
+
+      // Where to paint: in-page canvas over the anchor at rest, the fixed
+      // full-screen canvas while flying.
+      const useLocal = !moving && !skipPaint;
+      let g = ctx!;
+      let ox = 0;
+      let oy = 0;
+      if (useLocal) {
+        const docW = document.documentElement.clientWidth;
+        const left = Math.max(0, Math.floor(rr.left + window.scrollX - PAD));
+        const top = Math.max(0, Math.floor(rr.top + sy - PAD));
+        const w = Math.min(docW - left, Math.ceil(rr.width + 2 * PAD));
+        const h = Math.ceil(rr.height + 2 * PAD);
+        const key = `${left},${top},${w},${h},${dpr}`;
+        if (key !== localKey) {
+          localKey = key;
+          local.width = Math.round(w * dpr);
+          local.height = Math.round(h * dpr);
+          local.style.width = `${w}px`;
+          local.style.height = `${h}px`;
+          local.style.transform = `translate(${left}px, ${top}px)`;
+        }
+        if (!localOn) {
+          local.style.display = "block";
+          localOn = true;
+        }
+        lctx.clearRect(0, 0, local.width, local.height);
+        g = lctx;
+        // Viewport → local canvas coordinates.
+        ox = left - window.scrollX;
+        oy = top - sy;
+      } else if (localOn) {
+        local.style.display = "none";
+        localOn = false;
+      }
+      g.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
 
       for (let i = 0; i < N; i++) {
         const pa = A.points[i];
@@ -454,15 +503,15 @@ export function MorphField() {
         }
         x = pos[ix];
         y = pos[iy] - sy;
-        if (y < -20 || y > vh + 20) continue;
+        if (!useLocal && (y < -20 || y > vh + 20)) continue;
 
         if (skipPaint) continue;
-        if (moving) ctx!.globalAlpha = 1 - 0.5 * lift;
+        if (moving) g.globalAlpha = 1 - 0.5 * lift;
         // Snap to device pixels so dots stay crisp.
-        ctx!.fillRect((x - half) * dpr, (y - half) * dpr, size, size);
+        g.fillRect((x - ox - half) * dpr, (y - oy - half) * dpr, size, size);
       }
       placed = true;
-      ctx!.globalAlpha = 1;
+      g.globalAlpha = 1;
     }
 
     let resizeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -508,6 +557,7 @@ export function MorphField() {
       document.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVisibility);
       for (const el of hidden) el.style.color = "";
+      local.remove();
     };
   }, [host]);
 
