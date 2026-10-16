@@ -336,7 +336,7 @@ export function MorphField() {
       // (matters on short phone screens).
       const sy = window.scrollY;
       const settle = vh * 0.45;
-      // The hero word stays whole while you scroll it up, and only breaks
+      // A hero word (data-morph-rest="hide") stays whole while you scroll it up, and only breaks
       // apart once it starts leaving the frame (its top reaches the header).
       // That moment is expressed as where the next anchor sits then.
       // Later morphs start as their anchor scrolls in.
@@ -344,7 +344,9 @@ export function MorphField() {
       const enterAt = (i: number) =>
         Math.max(
           settle + 1,
-          i === 1 ? centers[1] - rects[0].top + headerH : Math.min(vh * 0.95, centers[i] + sy - 40),
+          i === 1 && anchors[0].restHidden
+            ? centers[1] - rects[0].top + headerH
+            : Math.min(vh * 0.95, centers[i] + sy - 40),
         );
       let k = 0;
       for (let i = 0; i < anchors.length; i++) if (centers[i] < enterAt(i)) k = i;
@@ -406,7 +408,7 @@ export function MorphField() {
           const ti = smooth(clamp01((t - delay) / (1 - 0.45)));
           // Full scatter cloud for the hero; a tighter one between sections
           // so it doesn't sprawl over the content in between.
-          lift = Math.sin(Math.PI * ti) * (from === 0 ? 1 : 0.45);
+          lift = Math.sin(Math.PI * ti) * (from === 0 && A.restHidden ? 1 : 0.45);
           x = ra.left + pa.x + (rb.left + pb.x - (ra.left + pa.x)) * ti + seedDir[i].dx * lift;
           y = ra.top + pa.y + (rb.top + pb.y - (ra.top + pa.y)) * ti + seedDir[i].dy * lift;
         }

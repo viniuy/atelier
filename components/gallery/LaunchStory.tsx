@@ -479,7 +479,7 @@ const STARS: [number, number, number][] = Array.from({ length: 44 }, (_, i) => {
     const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
     return x - Math.floor(x);
   };
-  return [Math.round(r(1) * 1200), Math.round(r(2) * 800), 0.25 + r(3) * 0.6];
+  return [Math.round(r(1) * 1200), Math.round(r(2) * 800), Math.round((0.25 + r(3) * 0.6) * 100) / 100];
 });
 
 /** Smoke puffs (offset from the pad, and size), rolling outward along the ground. */
@@ -554,7 +554,7 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
     let fired = false;
 
     const geo = () => {
-      const start = box.getBoundingClientRect().top + window.scrollY - parseFloat(getComputedStyle(st).top || "0");
+      const start = box.getBoundingClientRect().top + window.scrollY - (parseFloat(getComputedStyle(st).top) || 0);
       const range = Math.max(1, box.offsetHeight - st.offsetHeight);
       return { start, range };
     };
@@ -671,6 +671,12 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
       touchY = null;
     };
 
+    // Check again once layout settles, so a page that opens on the story
+    // plays its opening slide.
+    const ro = new ResizeObserver(() => onScroll());
+    ro.observe(box);
+    const retry = setTimeout(onScroll, 400);
+    window.addEventListener("load", onScroll);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("keydown", onKey);
@@ -680,6 +686,9 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
     onScroll();
     return () => {
       anim?.stop();
+      ro.disconnect();
+      clearTimeout(retry);
+      window.removeEventListener("load", onScroll);
       clearTimeout(accTimer);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("wheel", onWheel);
@@ -753,7 +762,7 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
   // Stars streak past once it's flying; they move with the climb.
   const starsY = useTransform(p, (v) => ((-lift(v) * 0.5) % 800 + 800) % 800);
   const starsO = useP(p, [0.855, 0.885, 0.94], [0, 1, 0.4]);
-  const starLen = useTransform(p, (v) => 6 + 60 * smooth(span(v, 0.86, 0.93)));
+  const starLen = useTransform(p, (v) => (6 + 60 * smooth(span(v, 0.86, 0.93))) / 66);
 
   // ── Act 4: through the porthole, into the wordmark ───────────────────
   const reveal = useTransform([p, sw, sh], ([pv, wv, hv]) => {
@@ -829,7 +838,17 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
             {[0, -800].map((off) => (
               <motion.g key={off} style={{ y: starsY }}>
                 {STARS.map(([x, y, o], k) => (
-                  <motion.rect key={k} x={x} y={y + off} width={1.6} height={starLen} rx={0.8} fill="#e9e7e1" opacity={o} />
+                  <motion.rect
+                    key={k}
+                    x={x}
+                    y={y + off}
+                    width={1.6}
+                    height={66}
+                    rx={0.8}
+                    fill="#e9e7e1"
+                    opacity={o}
+                    style={{ scaleY: starLen, originY: 0, transformBox: "fill-box" }}
+                  />
                 ))}
               </motion.g>
             ))}
