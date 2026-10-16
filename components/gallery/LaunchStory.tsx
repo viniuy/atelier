@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { motion, useMotionValue, useScroll, useSpring, useTransform, type MotionValue } from "motion/react";
+import { animate, motion, useMotionValue, useTransform, type AnimationPlaybackControls, type MotionValue } from "motion/react";
 import { DarkDots } from "./Backgrounds";
 
 /**
@@ -14,8 +14,10 @@ import { DarkDots } from "./Backgrounds";
  *      rocket, and the rocket flies up with the camera following.
  *   4. The camera pushes through the porthole into the Atelier wordmark.
  *
- * One cinematic line of text narrates it. Scroll progress is spring-smoothed
- * so wheel steps glide instead of jumping; scrolling back rewinds.
+ * One cinematic line of text narrates it. The story moves in slides: while
+ * it's pinned, a scroll gesture (about two wheel notches, an arrow key, or a
+ * swipe) plays the animation through to the next finished beat (STOPS), so
+ * it never rests half-way. At either end, scrolling carries on as normal.
  */
 
 type Step = { title: string; body: string };
@@ -135,7 +137,7 @@ const lift = (v: number) => -1500 * span(v, 0.81, 0.95) ** 2;
 
 /** Camera: focus point in scene coordinates and zoom. */
 function camera(v: number) {
-  const at = [0, 0.1, 0.24, 0.27, 0.6, 0.7, 0.8];
+  const at = [0, 0.1, 0.24, 0.27, 0.62, 0.7, 0.8];
   let fx = keys(v, at, [600, 600, SCX, SCX, SCX, 600, padTop[0]]);
   let fy = keys(v, at, [400, 390, SCY, SCY, SCY, 380, padTop[1] - 130]);
   let z = keys(v, at, [1.08, 1.12, 2.2, 2.6, 2.6, 1.15, 1.35]);
@@ -171,8 +173,8 @@ const zoomBoost = (w: number) => (w <= NARROW_PX ? 1.5 : 1);
 const B = {
   overlayIn: [0.262, 0.272], // full-size site appears over the zoomed screen
   flatten: [0.272, 0.33], // …and un-skews to fill the view
-  unflatten: [0.54, 0.6],
-  overlayOut: [0.6, 0.61],
+  unflatten: [0.56, 0.62],
+  overlayOut: [0.62, 0.63],
   typing: [0.335, 0.39],
   image: [0.41, 0.44],
   logo: [0.46, 0.475],
@@ -182,11 +184,17 @@ const B = {
 } satisfies Record<string, [number, number]>;
 
 const LINES: { text: string; range: [number, number] }[] = [
-  { text: "Turning your ideas", range: [0.02, 0.2] },
+  { text: "Turning your ideas", range: [0.02, 0.26] },
   { text: "into a website your customers will love,", range: [0.31, 0.43] },
-  { text: "tailored to every detail of your brand,", range: [0.44, 0.57] },
+  { text: "tailored to every detail of your brand,", range: [0.44, 0.6] },
   { text: "and launched to the world.", range: [0.69, 0.87] },
 ];
+
+/** Finished beats the story rests on: talking, "that one", headline typed,
+ *  fully edited, rocket built, boarded, and the wordmark. */
+const STOPS = [0.1, 0.22, 0.395, 0.555, 0.72, 0.79, 1];
+/** Wheel distance (px) that counts as one step: about two notches. */
+const WHEEL_STEP = 150;
 
 const HEAD = ["Cool rooms,", "honest prices."];
 
@@ -431,10 +439,7 @@ function Bubble({ o, at, kind }: { o: MotionValue<number>; at: [number, number];
 export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: React.ReactNode; brand: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
-  // Glide between wheel steps: a quick, overdamped spring (~0.1s), so it
-  // follows the scroll closely without stair-stepping.
-  const p = useSpring(scrollYProgress, { stiffness: 300, damping: 40, mass: 1, restDelta: 0.00005 });
+  const p = useMotionValue(0);
   const narrow = useNarrow();
   const sw = useMotionValue(1200);
   const sh = useMotionValue(800);
@@ -449,6 +454,148 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
     ro.observe(el);
     return () => ro.disconnect();
   }, [sw, sh]);
+
+  // Slides: while the stage is pinned, input steps between STOPS and each
+  // step plays out on its own clock. The page is scrolled to match the
+  // slide (invisible, since the stage is sticky) so leaving at either end
+  // continues naturally.
+  useEffect(() => {
+    const box = ref.current;
+    const st = stage.current;
+    if (!box || !st) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const last = STOPS.length - 1;
+    let idx = -1;
+    let busy = false;
+    let acc = 0;
+    let accTimer: ReturnType<typeof setTimeout> | undefined;
+    let quietUntil = 0;
+    let inside = false;
+    let anim: AnimationPlaybackControls | undefined;
+    let touchY: number | null = null;
+    let fired = false;
+
+    const geo = () => {
+      const start = box.getBoundingClientRect().top + window.scrollY - parseFloat(getComputedStyle(st).top || "0");
+      const range = Math.max(1, box.offsetHeight - st.offsetHeight);
+      return { start, range };
+    };
+    const pinned = () => {
+      const { start, range } = geo();
+      return window.scrollY >= start - 1 && window.scrollY <= start + range + 1;
+    };
+    const holdScroll = (i: number) => {
+      const { start, range } = geo();
+      quietUntil = performance.now() + 120;
+      window.scrollTo({ top: start + (range * i) / last, behavior: "instant" });
+    };
+    const go = (i: number, instant = false) => {
+      i = Math.max(0, Math.min(last, i));
+      holdScroll(i);
+      if (i === idx) return;
+      idx = i;
+      anim?.stop();
+      const to = STOPS[i];
+      if (instant || reduce) {
+        p.jump(to);
+        return;
+      }
+      busy = true;
+      anim = animate(p, to, {
+        duration: Math.min(2, Math.max(0.7, Math.abs(to - p.get()) * 7)),
+        ease: [0.65, 0, 0.35, 1],
+        onComplete: () => {
+          // A short grace period swallows trackpad momentum.
+          setTimeout(() => {
+            busy = false;
+            acc = 0;
+          }, 220);
+        },
+      });
+    };
+    /** True when this direction should leave the story and scroll the page. */
+    const leaving = (d: number) => !busy && ((idx <= 0 && d < 0) || (idx === last && d > 0));
+
+    const onScroll = () => {
+      if (performance.now() < quietUntil) return;
+      if (!pinned()) {
+        inside = false;
+        return;
+      }
+      const { start, range } = geo();
+      const n = Math.round(((window.scrollY - start) / range) * last);
+      if (!inside) {
+        // Entering: from above, play the opening; from below or a jump, land on that slide.
+        inside = true;
+        go(n, n !== 0);
+      } else if (n !== idx) {
+        // Scrollbar drag, keys or momentum: one slide at a time.
+        if (busy) holdScroll(idx);
+        else go(idx + Math.sign(n - idx));
+      }
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (idx < 0 || !pinned() || e.ctrlKey) return;
+      const d = Math.sign(e.deltaY);
+      if (!d || leaving(d)) return;
+      e.preventDefault();
+      if (busy) return;
+      acc += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 800 : e.deltaY;
+      clearTimeout(accTimer);
+      accTimer = setTimeout(() => (acc = 0), 400);
+      if (Math.abs(acc) >= WHEEL_STEP) {
+        acc = 0;
+        go(idx + d);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (idx < 0 || !pinned() || e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, select, [contenteditable]")) return;
+      const down = ["ArrowDown", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey);
+      const up = ["ArrowUp", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey);
+      const d = down ? 1 : up ? -1 : 0;
+      if (!d || leaving(d)) return;
+      e.preventDefault();
+      if (!busy) go(idx + d);
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? null;
+      fired = false;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchY === null || idx < 0 || !pinned()) return;
+      const dy = touchY - (e.touches[0]?.clientY ?? touchY);
+      const d = Math.sign(dy);
+      if (!d || (!fired && leaving(d))) return;
+      e.preventDefault();
+      if (!fired && !busy && Math.abs(dy) > 36) {
+        fired = true;
+        go(idx + d);
+      }
+    };
+    const onTouchEnd = () => {
+      touchY = null;
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+    onScroll();
+    return () => {
+      anim?.stop();
+      clearTimeout(accTimer);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [p]);
 
   // Motion keeps the transform origin at the view-box centre (600, 400), so
   // scale(s) translate(centre - focus) puts the focus point dead centre.
@@ -490,7 +637,7 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
     const cy = lerp(H / 2, top + (H - top - bottom) / 2, flat);
     return `matrix(${a}, ${b}, 0, ${d}, ${cx - a * (DW / 2)}, ${cy - b * (DW / 2) - d * (DH / 2)})`;
   });
-  const sceneDim = useP(p, [0.272, 0.3, 0.55, 0.6], [1, 0.25, 0.25, 1]);
+  const sceneDim = useP(p, [0.272, 0.3, 0.56, 0.62], [1, 0.25, 0.25, 1]);
 
   // ── Act 3: board the rocket, lift off ────────────────────────────────
   const rocketBuild = useP(p, [0.66, 0.72], [0, 1]);
@@ -523,7 +670,7 @@ export function LaunchStory({ steps, title, brand }: { steps: Step[]; title: Rea
   const viewOrigin = (x: number, y: number) => ({ originX: `${x}px`, originY: `${y}px`, transformBox: "view-box" as const });
 
   return (
-    <div ref={ref} className="relative h-[620vh]">
+    <div ref={ref} className="relative" style={{ height: `calc(100svh - 3.5rem + ${(STOPS.length - 1) * 45}vh)` }}>
       <div ref={stage} className="sticky top-14 h-[calc(100svh-3.5rem)] overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <DarkDots />
