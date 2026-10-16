@@ -6,13 +6,13 @@
  * these; each template sets its own palette (as --c-* variables) and fonts.
  */
 @theme {
-  --color-paper: #fafaf9; /* page */
-  --color-paper-2: #f1f0ed; /* sunken surfaces, preview stage */
+  --color-paper: #f4f3ef; /* page: warm off-white, never pure white */
+  --color-paper-2: #ebe9e3; /* sunken surfaces, preview stage, footer */
   --color-card: #ffffff;
   --color-ink: #1a1a19; /* text, primary buttons */
   --color-ink-2: #3d3c39;
-  --color-muted: #6b6a66; /* secondary text, 5.3:1 on paper */
-  --color-line: #e4e3df; /* hairlines */
+  --color-muted: #63625e; /* secondary text, ≥4.5:1 on paper and paper-2 */
+  --color-line: #dddad3; /* hairlines */
   --color-line-strong: #cfcdc8;
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;

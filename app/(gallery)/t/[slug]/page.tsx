@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { getCategory } from "@/data/categories";
 import { absoluteUrl, contactHref, site } from "@/data/site";
 import { getTemplate, getTemplatesByCategory, templates, toCardData } from "@/data/templates";
+import { getInspirationFor } from "@/data/showcase";
 import { CopyLinkButton } from "@/components/gallery/CopyLinkButton";
 import { DevicePreview } from "@/components/gallery/DevicePreview";
 import { TemplateCard } from "@/components/gallery/TemplateCard";
@@ -54,6 +55,7 @@ async function TemplateDetailPageContent({ params }: Pick<PageProps<"/t/[slug]">
   const previewPath = `/preview/${t.slug}`;
   const displayUrl = absoluteUrl(previewPath).replace(/^https?:\/\//, "");
   const more = getTemplatesByCategory(t.category).filter((x) => x.slug !== t.slug).map(toCardData);
+  const inspiredBy = getInspirationFor(t.slug);
   const ctaNote = site.contact.method === "messenger" ? "Opens Messenger" : "Opens your email app";
 
   return (
@@ -120,6 +122,19 @@ async function TemplateDetailPageContent({ params }: Pick<PageProps<"/t/[slug]">
             </ul>
           </Row>
           <Row label="Style">{t.tags.join(", ")}</Row>
+          {inspiredBy.length > 0 && (
+            <Row label="Inspired by">
+              <ul className="space-y-1">
+                {inspiredBy.map((s) => (
+                  <li key={s.slug}>
+                    <Link href={`/sites/${s.slug}`} className="underline decoration-line-strong underline-offset-4 hover:decoration-ink">
+                      {s.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Row>
+          )}
         </dl>
 
         <aside className="lg:sticky lg:top-24 lg:self-start">

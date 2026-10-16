@@ -4,7 +4,7 @@ import { site } from "@/data/site";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-32 border-t border-line">
+    <footer className="border-t border-line bg-paper-2">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 text-[14px] sm:px-6 md:grid-cols-[1.5fr_1fr_1fr]">
         <div className="max-w-xs">
           <p className="text-[17px] font-semibold tracking-[-0.02em]">{site.name}</p>

@@ -22,6 +22,7 @@ npm run dev          # http://localhost:3000
 | `npm run build` / `npm start` | Production build / serve |
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
 | `npm run placeholders` | Creates a placeholder JPG for every image slot that doesn't have a file yet (`--force` regenerates all) |
+| `npm run showcase` | Screenshots every real site in `data/showcase.ts` into `public/showcase/<slug>.jpg` (dismisses cookie banners). `npm run showcase -- teko` for one. |
 | `npm run thumbnails` | Screenshots every template's `/preview/<slug>` into its `thumbnail.jpg` and `thumbnail-mobile.jpg`. Needs the site running and Chrome or Edge installed. Use `BASE_URL=http://localhost:3123 npm run thumbnails` for another port, or `npm run thumbnails -- dispatch` for one template. |
 
 ### Settings you'll want to change
@@ -48,6 +49,8 @@ Set `NEXT_PUBLIC_SITE_URL` (e.g. `https://atelier.yourdomain.com`) so shareable 
 | `/` | Intro, every live template grouped by industry, industry list, process |
 | `/c/[category]` | Filterable grid of a category's templates ("Coming soon" state for empty categories) |
 | `/t/[slug]` | Live preview in a Desktop / iPad / iPhone frame, details, palette, fonts, "I like this one" CTA, copy-client-link |
+| `/sites` | Real websites: your client work and labelled inspiration |
+| `/sites/[slug]` | One real site: screenshot (or live preview if it allows embedding), notes, related template |
 | `/preview/[slug]` | The template alone, no gallery chrome. **Send this link to clients.** (`noindex`) |
 
 The detail page previews templates through an iframe of `/preview/[slug]` rendered at the device's real width (1440 / 834 / 393 px). That way the iPad and iPhone toggles trigger the template's own responsive breakpoints instead of shrinking the desktop layout.
@@ -71,6 +74,7 @@ data/
   site.ts                       your contact settings
   categories.ts                 every category (live / coming soon)
   templates.ts                  template registry: one line per template
+  showcase.ts                   real websites: client work + inspiration
 lib/                            types + helpers (peso formatting, palette → CSS vars)
 templates/
   _kit/                         cross-category helpers (TemplateRoot, SlotImage, brand icons)
@@ -157,6 +161,15 @@ No gallery code changes. Home, category, detail and preview pages pick it up aut
 
 ---
 
+## Real sites (client work and inspiration)
+
+`data/showcase.ts` lists real, live websites, kept separate from the templates:
+
+- **`kind: "work"`**: sites you built for clients. They appear first, as your portfolio. With none listed, the section stays hidden in production; in development a note reminds you where to add them.
+- **`kind: "inspiration"`**: other businesses' sites, always labelled "Inspiration · not built by Atelier" and linked to the original. Set `template` to link one to the template it inspired. That template's page then shows an "Inspired by" row.
+
+To add one, add an entry, run `npm run showcase -- <slug>` to capture its screenshot, and you're done. Most big brand sites refuse to load inside other sites' frames, so the detail page shows a screenshot that links out. If a site (typically your own client's) allows embedding, set `embeddable: true` to get the live Desktop / iPad / iPhone preview instead.
+
 ## The aircon templates
 
 Each one is modeled on the structure and visual language of a real site. The businesses, copy, prices and branding are fictional; only the layout patterns are borrowed.
@@ -170,10 +183,11 @@ Each one is modeled on the structure and visual language of a real site. The bus
 
 ## Design rules for the gallery
 
-The shell follows the anti-"AI slop" checklists from [Impeccable](https://github.com/pbakaus/impeccable) and [Taste Skill](https://github.com/Leonxlnx/taste-skill). No glassmorphism, gradient text, eyebrow labels, icon-tile card grids, hero-metric widgets or bounce easing. Use one neutral palette, hairline dividers instead of cards, and motion only for page fades and the device toggle.
+The shell follows the anti-"AI slop" checklists from [Impeccable](https://github.com/pbakaus/impeccable) and [Taste Skill](https://github.com/Leonxlnx/taste-skill). No glassmorphism, gradient text, eyebrow labels, icon-tile card grids, hero-metric widgets or bounce easing. Use one warm neutral palette (never pure white), hairline dividers instead of cards, one ambient background (DotGrid), and motion only for page fades and the device toggle.
 
 ## Third-party UI
 
+- **[React Bits](https://reactbits.dev)** `DotGrid` (`components/reactbits/`, vendored from the registry): the faint dot field behind the home hero and the dark process band, wrapped in `components/gallery/Backgrounds.tsx`. ESLint's React Compiler rules are relaxed for that folder only.
 - **[Motion](https://motion.dev)**: page fade, device-frame morphing, filter transitions. Respects the OS reduce-motion setting.
 - **[lucide](https://lucide.dev)**: icons. Brand marks (Messenger, Viber, WhatsApp, Facebook…) are simplified SVGs in `templates/_kit/BrandIcons.tsx`.
 

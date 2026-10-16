@@ -19,7 +19,7 @@ export default function GalleryLayout({ children }: { children: React.ReactNode 
       </a>
       <Providers>
         <SiteHeader />
-        <main id="main" className="flex-1">
+        <main id="main" className="flex-1 pb-32 has-[#process]:pb-0">
           {children}
         </main>
         <SiteFooter />

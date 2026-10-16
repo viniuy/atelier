@@ -3,6 +3,9 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { categories } from "@/data/categories";
 import { countByCategory, getTemplatesByCategory, templates, toCardData } from "@/data/templates";
 import { TemplateCard } from "@/components/gallery/TemplateCard";
+import { SiteCard } from "@/components/gallery/SiteCard";
+import { DarkDots, HeroDots } from "@/components/gallery/Backgrounds";
+import { showcase } from "@/data/showcase";
 
 const steps = [
   {
@@ -29,7 +32,11 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="mx-auto max-w-6xl px-4 pt-20 pb-16 sm:px-6 md:pt-28 md:pb-24">
+      <section className="relative isolate overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <HeroDots />
+        </div>
+        <div className="pointer-events-none mx-auto max-w-6xl px-4 pt-20 pb-20 sm:px-6 md:pt-32 md:pb-32 [&_a]:pointer-events-auto">
         <h1 className="max-w-3xl text-[clamp(2.4rem,6vw,4.25rem)] leading-[1.04] font-semibold tracking-[-0.035em] text-balance">
           Show a client their website before you build it.
         </h1>
@@ -47,6 +54,7 @@ export default function HomePage() {
           <Link href="#process" className="text-[15px] underline decoration-line-strong underline-offset-4 hover:decoration-ink">
             How it works
           </Link>
+        </div>
         </div>
       </section>
 
@@ -79,6 +87,36 @@ export default function HomePage() {
           );
         })}
       </div>
+
+      {showcase.length > 0 && (
+        <section aria-labelledby="sites-title" className="border-t border-line">
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+            <div className="mb-10 flex items-baseline justify-between gap-6">
+              <div>
+                <h2 id="sites-title" className="text-[22px] font-semibold tracking-[-0.02em]">
+                  Real sites
+                </h2>
+                <p className="mt-2 max-w-lg text-[14px] text-muted">
+                  Live client work, plus the real businesses whose sites shaped our templates.
+                </p>
+              </div>
+              <Link href="/sites" className="shrink-0 text-[14px] text-muted underline-offset-4 hover:text-ink hover:underline">
+                View all
+              </Link>
+            </div>
+            <ul className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-4">
+              {[...showcase]
+                .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "work" ? -1 : 1))
+                .slice(0, 4)
+                .map((s) => (
+                  <li key={s.slug}>
+                    <SiteCard site={s} sizes="(min-width: 1024px) 270px, (min-width: 640px) 50vw, 100vw" />
+                  </li>
+                ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       <section id="industries" aria-labelledby="industries-title" className="scroll-mt-16 border-t border-line">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 md:grid-cols-[1fr_2fr]">
@@ -120,23 +158,34 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="process" aria-labelledby="process-title" className="scroll-mt-16 border-t border-line">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <h2 id="process-title" className="text-[22px] font-semibold tracking-[-0.02em]">
+      <section id="process" aria-labelledby="process-title" className="relative isolate mt-20 scroll-mt-16 overflow-hidden bg-ink text-paper">
+        <div className="absolute inset-0 -z-10">
+          <DarkDots />
+        </div>
+        <div className="pointer-events-none mx-auto max-w-6xl px-4 py-24 sm:px-6 [&_a]:pointer-events-auto">
+          <h2 id="process-title" className="max-w-xl text-[clamp(1.8rem,4vw,2.6rem)] leading-tight font-semibold tracking-[-0.03em]">
             From preview to launch
           </h2>
-          <ol className="mt-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <ol className="mt-14 grid gap-10 border-t border-white/10 pt-10 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((s, i) => (
               <li key={s.title}>
-                <span className="font-mono text-[13px] text-muted">{i + 1}</span>
+                <span className="font-mono text-[13px] text-[#a8a6a0]">{i + 1}</span>
                 <h3 className="mt-3 font-medium">{s.title}</h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-muted">{s.body}</p>
+                <p className="mt-2 text-[14px] leading-relaxed text-[#a8a6a0]">{s.body}</p>
               </li>
             ))}
           </ol>
-          <p className="mt-14 text-[14px] text-muted">
-            {templates.length} templates across {live.length} {live.length === 1 ? "industry" : "industries"} so far.
-          </p>
+          <div className="mt-16 flex flex-wrap items-center justify-between gap-6 border-t border-white/10 pt-10">
+            <p className="text-[14px] text-[#a8a6a0]">
+              {templates.length} templates across {live.length} {live.length === 1 ? "industry" : "industries"} so far.
+            </p>
+            <Link
+              href="#templates"
+              className="inline-flex items-center gap-2 rounded-md bg-paper px-5 py-3 text-[15px] font-medium text-ink transition-colors hover:bg-white"
+            >
+              Start browsing <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </section>
     </>

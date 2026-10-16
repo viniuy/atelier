@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "placeholders": "node scripts/placeholders.mjs",
-    "thumbnails": "node scripts/thumbnails.mjs"
+    "thumbnails": "node scripts/thumbnails.mjs",
+    "showcase": "node scripts/showcase.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.57.0",

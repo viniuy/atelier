@@ -3,6 +3,7 @@ import { site } from "@/data/site";
 
 const links = [
   { href: "/#templates", label: "Templates" },
+  { href: "/sites", label: "Real sites" },
   { href: "/#industries", label: "Industries" },
   { href: "/#process", label: "Process" },
 ];
@@ -16,7 +17,7 @@ export function contactUrl() {
 /** Plain sticky bar: wordmark, three anchors, one contact link. */
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-paper">
+    <header className="sticky top-0 z-50 border-b border-line bg-paper/95 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
         <Link href="/" className="text-[17px] font-semibold tracking-[-0.02em]" aria-label={`${site.name} home`}>
           {site.name}

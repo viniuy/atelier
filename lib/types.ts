@@ -64,3 +64,25 @@ export type TemplateCardData = Pick<
   TemplateMeta,
   "slug" | "name" | "tagline" | "tags" | "thumbnail" | "palette" | "category"
 > & { categoryName: string };
+
+/** A real website shown in the gallery (see data/showcase.ts). */
+export type ShowcaseSite = {
+  slug: string;
+  name: string;
+  url: string;
+  /** "work": built by you for a client. "inspiration": someone else's site, used as a reference. */
+  kind: "work" | "inspiration";
+  /** Category slug from data/categories.ts */
+  category: string;
+  summary: string;
+  /** What's worth borrowing (inspiration) or what was built (work) */
+  notes?: string[];
+  /** Related Atelier template slug: what it was built from, or what it inspired */
+  template?: string;
+  client?: string;
+  year?: number;
+  /** 1440×900 screenshot under /public */
+  screenshot: string;
+  /** True only if the site can be shown in an iframe (live device preview) */
+  embeddable?: boolean;
+};
