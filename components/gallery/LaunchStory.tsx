@@ -212,10 +212,10 @@ const B = {
   unflatten: [0.56, 0.62],
   overlayOut: [0.62, 0.63],
   typing: [0.335, 0.39],
-  image: [0.41, 0.44],
-  logo: [0.46, 0.475],
-  cta: [0.49, 0.505],
-  cards: [0.515, 0.54],
+  image: [0.44, 0.47],
+  logo: [0.492, 0.512],
+  cta: [0.5, 0.52],
+  cards: [0.527, 0.553],
   reveal: [0.95, 0.99],
 } satisfies Record<string, [number, number]>;
 
@@ -227,8 +227,8 @@ const LINES: { text: string; range: [number, number] }[] = [
 ];
 
 /** Finished beats the story rests on: talking, "that one", headline typed,
- *  fully edited, rocket built, boarded, and the wordmark. */
-const STOPS = [0.1, 0.22, 0.395, 0.555, 0.72, 0.79, 1];
+ *  image in, fully edited, rocket built, boarded, and the wordmark. */
+const STOPS = [0.1, 0.22, 0.395, 0.475, 0.555, 0.72, 0.79, 1];
 /** Wheel distance (px) that counts as one step: one notch on most mice;
  *  finer wheels and trackpads add up over a short window. */
 const WHEEL_STEP = 90;
@@ -378,11 +378,9 @@ function SiteArt({ s }: { s: SiteState }) {
 
 /** What gets selected while the site is edited (design px). */
 const EDITS: { label: string; box: [number, number, number, number]; hold: [number, number] }[] = [
-  { label: "Heading", box: [664, 226, 560, 150], hold: [0.32, 0.395] },
-  { label: "Image", box: [48, 198, 584, 454], hold: [0.405, 0.445] },
-  { label: "Logo", box: [48, 108, 270, 64], hold: [0.455, 0.475] },
-  { label: "Button", box: [668, 466, 274, 94], hold: [0.485, 0.505] },
-  { label: "Section", box: [48, 702, 1184, 124], hold: [0.515, 0.545] },
+  { label: "Heading", box: [664, 226, 560, 150], hold: [0.32, 0.405] },
+  { label: "Image", box: [48, 198, 584, 454], hold: [0.425, 0.48] },
+  { label: "Button", box: [668, 466, 274, 94], hold: [0.497, 0.53] },
 ];
 const EDIT_AT = EDITS.flatMap((e) => e.hold);
 const editVal = (v: number, k: number) =>
@@ -404,7 +402,7 @@ function Editor({ p }: { p: MotionValue<number> }) {
   const y = useTransform(p, (v) => editVal(v, 1));
   const w = useTransform(p, (v) => editVal(v, 2));
   const h = useTransform(p, (v) => editVal(v, 3));
-  const on = useP(p, [0.318, 0.33, 0.54, 0.548], [0, 1, 1, 0]);
+  const on = useP(p, [0.318, 0.33, 0.528, 0.542], [0, 1, 1, 0]);
   const label = useTransform(p, (v) => [...EDITS].reverse().find((e) => v >= e.hold[0] - 0.005)?.label ?? EDITS[0].label);
   // The cursor leads the selection slightly, like a hand doing the work.
   const cx = useTransform(p, (v) => editVal(v + 0.006, 0) + editVal(v + 0.006, 2) * 0.72);
