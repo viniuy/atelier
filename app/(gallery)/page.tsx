@@ -7,6 +7,7 @@ import { contactHrefForCategory, site } from "@/data/site";
 import { SiteCard } from "@/components/gallery/SiteCard";
 import { DarkDots } from "@/components/gallery/Backgrounds";
 import { MorphField } from "@/components/gallery/MorphField";
+import { HeroHalftone } from "@/components/gallery/HeroHalftone";
 import { showcase } from "@/data/showcase";
 
 const steps = [
@@ -39,12 +40,13 @@ export default function HomePage() {
       <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center px-4 text-center">
         <h1
           data-morph="word"
-         
-          className="text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] transition-colors duration-500"
+          data-morph-rest="hide"
+          className="relative text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] transition-colors duration-500"
         >
           {site.name}
+          <HeroHalftone />
         </h1>
-        <p className="mt-6 text-[13px] tracking-[0.32em] text-muted uppercase sm:text-[14px]">Website library</p>
+        <p className="relative z-10 mt-6 text-[13px] tracking-[0.32em] text-muted uppercase sm:text-[14px]">Website library</p>
         <Link
           href="#templates"
           className="absolute bottom-8 flex flex-col items-center gap-3 text-[12px] tracking-[0.2em] text-muted uppercase transition-colors hover:text-ink"

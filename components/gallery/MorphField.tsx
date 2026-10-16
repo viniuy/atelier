@@ -23,7 +23,19 @@ import { createPortal } from "react-dom";
 
 type Shape = "word" | "browser" | "globe" | "grid" | "steps";
 type Pt = { x: number; y: number };
-type Anchor = { el: HTMLElement; shape: Shape; color: number[]; size: number; points: Pt[]; w: number; h: number };
+type Anchor = {
+  el: HTMLElement;
+  shape: Shape;
+  color: number[];
+  size: number;
+  points: Pt[];
+  w: number;
+  h: number;
+  /** data-morph-rest="hide": something else (e.g. a halftone) draws this shape at rest */
+  restHidden: boolean;
+  /** last --morph-leave written, to skip redundant style writes */
+  leave: number;
+};
 
 /** Deterministic PRNG so the shuffle is stable across resizes. */
 function mulberry32(seed: number) {
@@ -237,9 +249,9 @@ export function MorphField() {
         dx: Math.cos(a) * r,
         dy: Math.sin(a) * r - 40,
         jitter: rand(),
-        // Spring stiffness varies a little per dot, so a moving shape
-        // trails into a soft cloud instead of sliding as one rigid block.
-        k: 0.055 + rand() * 0.035,
+        // Stiffness varies a little per dot, so a moving shape trails into a
+        // soft cloud instead of sliding as one rigid block.
+        k: 0.1 + rand() * 0.04,
         phase: rand() * Math.PI * 2,
       };
     });
@@ -295,6 +307,8 @@ export function MorphField() {
             size: el.dataset.morphSize ? Number(el.dataset.morphSize) : Math.max(1, Math.round(step * 0.6)),
             points,
             w: r.width,
+            restHidden: el.dataset.morphRest === "hide",
+            leave: -1,
             h: r.height,
           } satisfies Anchor;
         })
@@ -315,15 +329,22 @@ export function MorphField() {
       const centers = rects.map((r) => r.top + r.height / 2);
 
       // Active pair: the last anchor that has entered the bottom of the view.
-      const enter = vh * 0.95;
+      // A morph starts while the next anchor is still below the fold, so the
+      // current shape visibly breaks apart before it scrolls out of view.
+      // Each anchor's start line is capped just above where it sits when the
+      // page is at the very top, so nothing starts moving before you scroll
+      // (matters on short phone screens).
+      const sy = window.scrollY;
       const settle = vh * 0.45;
+      const enterAt = (i: number) => Math.max(settle + 1, Math.min(vh * 1.3, centers[i] + sy - 40));
       let k = 0;
-      for (let i = 0; i < anchors.length; i++) if (centers[i] < enter) k = i;
+      for (let i = 0; i < anchors.length; i++) if (centers[i] < enterAt(i)) k = i;
       let from = k;
       const to = k;
       let t = 1;
       if (k > 0) {
         from = k - 1;
+        const enter = enterAt(k);
         t = clamp01((enter - centers[k]) / (enter - settle));
       }
       if (reduce) t = t >= 0.5 ? 1 : 0;
@@ -331,6 +352,16 @@ export function MorphField() {
       const A = anchors[from];
       const B = anchors[to];
       syncWords(t < 0.5 ? from : to);
+      // How far the particles have left each anchor (0 = sitting on it,
+      // 1 = gone), exposed as --morph-leave so an overlay can hand off.
+      anchors.forEach((a, j) => {
+        const leave = j === from && j !== to ? t : j === to ? (from === to ? 0 : 1 - t) : 1;
+        const rounded = Math.round(leave * 1000) / 1000;
+        if (rounded !== a.leave) {
+          a.leave = rounded;
+          a.el.style.setProperty("--morph-leave", String(rounded));
+        }
+      });
       const ra = rects[from];
       const rb = rects[to];
       const col = A.color.map((c, i) => Math.round(c + (B.color[i] - c) * smooth(t)));
@@ -339,6 +370,10 @@ export function MorphField() {
       ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
       ctx!.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
       const moving = !reduce && t > 0 && t < 1;
+      // At rest on an anchor that draws itself (the halftone hero), keep the
+      // physics running but don't paint the particles.
+      const settled = !moving ? (from === to || t >= 1 ? B : A) : null;
+      const skipPaint = !!settled?.restHidden;
       const half = size / dpr / 2;
       // At rest the particles sit on whichever shape is settled.
       const restOnB = from === to || t >= 1;
@@ -370,8 +405,8 @@ export function MorphField() {
           // together, so the grid stays clean while the shape breathes.
           const bx = rest[i].x;
           const by = rest[i].y;
-          x += Math.sin(time * 0.8 + by * 0.018 + bx * 0.006) * 1.6;
-          y += Math.sin(time * 1.1 + bx * 0.014) * 2.2;
+          x += Math.sin(time * 0.7 + by * 0.018 + bx * 0.006) * 0.9;
+          y += Math.sin(time * 0.9 + bx * 0.014) * 1.2;
           // Push away from the cursor.
           const ddx = x - pointer.x;
           const ddy = y - pointer.y;
@@ -392,7 +427,9 @@ export function MorphField() {
           vel[ix] = vel[iy] = 0;
         } else {
           const k = seedDir[i].k * dt;
-          const damp = Math.pow(0.8, dt);
+          // Close to critical damping: a soft glide that settles without
+          // overshooting (no bounce).
+          const damp = Math.pow(0.56, dt);
           vel[ix] = (vel[ix] + (x - pos[ix]) * k) * damp;
           vel[iy] = (vel[iy] + (y - pos[iy]) * k) * damp;
           pos[ix] += vel[ix] * dt;
@@ -402,6 +439,7 @@ export function MorphField() {
         y = pos[iy];
         if (y < -20 || y > vh + 20) continue;
 
+        if (skipPaint) continue;
         if (moving) ctx!.globalAlpha = 1 - 0.5 * lift;
         // Snap to device pixels so dots stay crisp.
         ctx!.fillRect((x - half) * dpr, (y - half) * dpr, size, size);
