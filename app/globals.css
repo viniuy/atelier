@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/*
+ * Gallery shell tokens. Quiet, warm monochrome: the templates are the color
+ * on this site, so the shell stays out of their way. Templates do NOT use
+ * these; each template sets its own palette (as --c-* variables) and fonts.
+ */
+@theme {
+  --color-paper: #fafaf9; /* page */
+  --color-paper-2: #f1f0ed; /* sunken surfaces, preview stage */
+  --color-card: #ffffff;
+  --color-ink: #1a1a19; /* text, primary buttons */
+  --color-ink-2: #3d3c39;
+  --color-muted: #6b6a66; /* secondary text, 5.3:1 on paper */
+  --color-line: #e4e3df; /* hairlines */
+  --color-line-strong: #cfcdc8;
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #111;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Consistent, visible keyboard focus everywhere (templates can override). */
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+/* Hide the default <details> marker; templates draw their own. */
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Shared micro-animation for template popovers (FloatingChat). */
+@keyframes atelier-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Horizontal scrollers without a visible scrollbar (carousels). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
