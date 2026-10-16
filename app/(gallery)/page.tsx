@@ -156,8 +156,8 @@ export default function HomePage() {
         <LaunchStory
           steps={steps}
           title={
-            <h2 id="process-title" className="max-w-xl text-[clamp(1.8rem,4vw,2.6rem)] leading-tight font-semibold tracking-[-0.03em]">
-              <RiseText>From preview to launch</RiseText>
+            <h2 id="process-title" className="text-[13px] font-medium tracking-[0.24em] text-[#a8a6a0] uppercase">
+              From preview to launch
             </h2>
           }
         />
