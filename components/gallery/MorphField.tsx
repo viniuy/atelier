@@ -255,8 +255,8 @@ export function MorphField() {
         phase: rand() * Math.PI * 2,
       };
     });
-    // Each dot is a damped spring chasing its target: soft follow with a
-    // gentle settle, plus a tiny idle drift so shapes breathe.
+    // Each dot is a damped spring chasing its target (in page coordinates):
+    // soft follow with a gentle settle, plus a tiny idle drift so shapes breathe.
     const pos = new Float32Array(N * 2);
     const vel = new Float32Array(N * 2);
     let placed = false;
@@ -434,6 +434,10 @@ export function MorphField() {
 
         const ix = i * 2;
         const iy = ix + 1;
+        // The springs run in page coordinates, so scrolling carries the dots
+        // exactly with the page; only real changes (a morph, the cursor)
+        // are softened. (Viewport coordinates made them trail on scroll.)
+        y += sy;
         if (reduce || !placed) {
           pos[ix] = x;
           pos[iy] = y;
@@ -449,7 +453,7 @@ export function MorphField() {
           pos[iy] += vel[iy] * dt;
         }
         x = pos[ix];
-        y = pos[iy];
+        y = pos[iy] - sy;
         if (y < -20 || y > vh + 20) continue;
 
         if (skipPaint) continue;
