@@ -233,11 +233,22 @@ export function MorphField() {
     const seedDir = Array.from({ length: N }, () => {
       const a = rand() * Math.PI * 2;
       const r = 60 + rand() * 260;
-      return { dx: Math.cos(a) * r, dy: Math.sin(a) * r - 40, jitter: rand() };
+      return {
+        dx: Math.cos(a) * r,
+        dy: Math.sin(a) * r - 40,
+        jitter: rand(),
+        // Spring stiffness varies a little per dot, so a moving shape
+        // trails into a soft cloud instead of sliding as one rigid block.
+        k: 0.055 + rand() * 0.035,
+        phase: rand() * Math.PI * 2,
+      };
     });
-    // Cursor push, eased separately so it springs; the shape itself is glued
-    // to the scroll position with no smoothing (no lag behind the page).
-    const push = new Float32Array(N * 2);
+    // Each dot is a damped spring chasing its target: soft follow with a
+    // gentle settle, plus a tiny idle drift so shapes breathe.
+    const pos = new Float32Array(N * 2);
+    const vel = new Float32Array(N * 2);
+    let placed = false;
+    let last = performance.now();
     let anchors: Anchor[] = [];
     let ready = false;
     let raf = 0;
@@ -284,8 +295,12 @@ export function MorphField() {
       ready = anchors.length > 0;
     }
 
-    function frame() {
+    function frame(now: number = performance.now()) {
       raf = requestAnimationFrame(frame);
+      // Normalise to 60 fps so the spring feels the same on 120 Hz screens.
+      const dt = Math.min(3, (now - last) / 16.667);
+      last = now;
+      const time = now / 1000;
       if (!ready) return;
       const vh = window.innerHeight;
       const rects = anchors.map((a) => a.el.getBoundingClientRect());
@@ -341,30 +356,48 @@ export function MorphField() {
           y = ra.top + pa.y + (rb.top + pb.y - (ra.top + pa.y)) * ti + seedDir[i].dy * lift;
         }
 
-        // Gentle push away from the cursor, with a little spring.
-        let px = 0;
-        let py = 0;
         if (!reduce) {
+          // Idle float: a slow wave across the shape. Neighbouring dots move
+          // together, so the grid stays clean while the shape breathes.
+          const bx = rest[i].x;
+          const by = rest[i].y;
+          x += Math.sin(time * 0.8 + by * 0.018 + bx * 0.006) * 1.6;
+          y += Math.sin(time * 1.1 + bx * 0.014) * 2.2;
+          // Push away from the cursor.
           const ddx = x - pointer.x;
           const ddy = y - pointer.y;
           const d2 = ddx * ddx + ddy * ddy;
-          if (d2 < 8100) {
+          if (d2 < 10000) {
             const d = Math.sqrt(d2) || 1;
-            const f = (1 - d / 90) * 18;
-            px = (ddx / d) * f;
-            py = (ddy / d) * f;
+            const f = (1 - d / 100) * 26;
+            x += (ddx / d) * f;
+            y += (ddy / d) * f;
           }
-          push[i * 2] += (px - push[i * 2]) * 0.2;
-          push[i * 2 + 1] += (py - push[i * 2 + 1]) * 0.2;
         }
-        x += push[i * 2];
-        y += push[i * 2 + 1];
+
+        const ix = i * 2;
+        const iy = ix + 1;
+        if (reduce || !placed) {
+          pos[ix] = x;
+          pos[iy] = y;
+          vel[ix] = vel[iy] = 0;
+        } else {
+          const k = seedDir[i].k * dt;
+          const damp = Math.pow(0.8, dt);
+          vel[ix] = (vel[ix] + (x - pos[ix]) * k) * damp;
+          vel[iy] = (vel[iy] + (y - pos[iy]) * k) * damp;
+          pos[ix] += vel[ix] * dt;
+          pos[iy] += vel[iy] * dt;
+        }
+        x = pos[ix];
+        y = pos[iy];
         if (y < -20 || y > vh + 20) continue;
 
         if (moving) ctx!.globalAlpha = 1 - 0.5 * lift;
         // Snap to device pixels so dots stay crisp.
-        ctx!.fillRect(Math.round((x - half) * dpr), Math.round((y - half) * dpr), Math.max(1, Math.round(size)), Math.max(1, Math.round(size)));
+        ctx!.fillRect((x - half) * dpr, (y - half) * dpr, size, size);
       }
+      placed = true;
       ctx!.globalAlpha = 1;
     }
 
