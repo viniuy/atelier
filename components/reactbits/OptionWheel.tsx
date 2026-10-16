@@ -27,6 +27,11 @@ export interface OptionWheelProps {
   className?: string;
   /** Atelier patch: accessible name for the listbox */
   label?: string;
+  /**
+   * Atelier patch: CSS touch-action for the wheel. 'pan-y' lets a finger
+   * swipe scroll the page (tap a name to select); mouse dragging still works.
+   */
+  touchAction?: CSSProperties['touchAction'];
 }
 
 interface WheelConfig {
@@ -82,7 +87,8 @@ const OptionWheel = ({
   soundUrl = '',
   soundVolume = 0.5,
   className = '',
-  label = 'Option wheel'
+  label = 'Option wheel',
+  touchAction = 'none'
 }: OptionWheelProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -324,13 +330,14 @@ const OptionWheel = ({
       role="listbox"
       tabIndex={0}
       aria-label={label}
-      className={`relative h-full w-full select-none overflow-hidden outline-none [touch-action:none] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}${className ? ` ${className}` : ''}`}
+      className={`relative h-full w-full select-none overflow-hidden outline-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}${className ? ` ${className}` : ''}`}
       style={
         {
           '--ow-text-color': textColor,
           '--ow-active-color': activeColor,
           '--ow-font-size': `${fontSize}rem`,
-          '--ow-inset': `${inset}px`
+          '--ow-inset': `${inset}px`,
+          touchAction
         } as CSSProperties
       }
       onPointerDown={handlePointerDown}

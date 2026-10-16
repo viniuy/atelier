@@ -29,7 +29,7 @@ export function CategoryWheel({ categories }: { categories: WheelCategory[] }) {
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-14">
       {/* The mask melts the names into the page at the top and bottom. */}
-      <div className="relative h-[210px] [mask-image:linear-gradient(to_bottom,transparent,black_18%,black_82%,transparent)] sm:h-[320px] lg:sticky lg:top-24 lg:h-[520px]">
+      <div className="relative h-[210px] [mask-image:linear-gradient(to_bottom,transparent,black_18%,black_82%,transparent)] sm:h-[320px] lg:h-[520px]">
         <OptionWheel
           items={categories.map((x) => x.name)}
           defaultSelected={0}
@@ -47,6 +47,7 @@ export function CategoryWheel({ categories }: { categories: WheelCategory[] }) {
           inset={4}
           loop={false}
           draggable
+          touchAction="pan-y"
           onChange={(i) => setIndex(i)}
           className="tracking-[-0.03em] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
         />

@@ -59,6 +59,8 @@ export interface CardSwapProps {
   children?: ReactNode;
   /** Atelier patch: accessible name for the carousel */
   label?: string;
+  /** Atelier patch: false makes clicks do nothing (drag and keys only) */
+  clickable?: boolean;
 }
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
@@ -369,6 +371,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       intro = true,
       theme = 'dark',
       label = 'Card stack',
+      clickable = true,
       onCardClick,
       onChange,
       className = '',
@@ -382,6 +385,8 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
     const shadeRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const apiRef = useRef<SwapApi | null>(null);
     const settingsRef = useRef<Settings>(null as unknown as Settings);
+    const clickableRef = useRef(clickable);
+    clickableRef.current = clickable;
 
     const cards = useMemo<ReactElement[]>(() => {
       const custom = Children.toArray(children).filter(isValidElement);
@@ -537,7 +542,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
           const depthT = clamp(card.p / Math.max(1, s.visible - 1), 0, 1);
           shade.style.opacity = (s.dim * 0.62 * depthT).toFixed(3);
         }
-        el.style.cursor = card.phase === 'drag' ? 'grabbing' : card.pos > 0 ? 'pointer' : s.draggable ? 'grab' : '';
+        el.style.cursor = card.phase === 'drag' ? 'grabbing' : card.pos > 0 ? (clickableRef.current ? 'pointer' : '') : s.draggable ? 'grab' : '';
         if (card.pos === 0) el.setAttribute('data-front', '');
         else el.removeAttribute('data-front');
       };
@@ -876,6 +881,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
           state.dragged = false;
           return;
         }
+        if (!clickableRef.current) return;
         const target = (event.target as Element | null)?.closest?.('[data-swap-index]');
         if (!target || !root.contains(target)) return;
         const index = Number(target.getAttribute('data-swap-index'));

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import CardSwap, { Card } from "@/components/reactbits/CardSwap";
 import type { TemplateCardData } from "@/lib/types";
@@ -13,12 +12,11 @@ const IMG_H = Math.round((W * 10) / 16);
 const H = IMG_H + 38;
 
 /**
- * A category's templates as a React Bits CardSwap deck. Click a card behind
- * to bring it forward, drag the front card away, or use the arrow keys.
- * Clicking the front card opens that template.
+ * A category's templates as a React Bits CardSwap deck. Drag the front card
+ * away (or use the arrow keys) to flip through; clicks do nothing, so the
+ * "Open template" button is the one way in.
  */
 export function TemplateStack({ items, label }: { items: TemplateCardData[]; label: string }) {
-  const router = useRouter();
   const [front, setFront] = useState(0);
   const t = items[front] ?? items[0];
 
@@ -45,9 +43,7 @@ export function TemplateStack({ items, label }: { items: TemplateCardData[]; lab
         pauseOnHover
         draggable
         onChange={setFront}
-        onCardClick={(i) => {
-          if (i === front) router.push(`/t/${items[i].slug}`);
-        }}
+        clickable={false}
         className="rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-ink"
       >
         {items.map((item, i) => (
@@ -103,7 +99,7 @@ export function TemplateStack({ items, label }: { items: TemplateCardData[]; lab
         </div>
       </div>
       <p className="mt-5 text-[13px] text-muted">
-        Click a card behind to bring it forward, drag the front one away, or use the arrow keys.
+        Drag the front card away to see the next one, or use the arrow keys.
       </p>
     </div>
   );
