@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import OptionWheel from "@/components/reactbits/OptionWheel";
 import type { TemplateCardData } from "@/lib/types";
-import { TemplateStack } from "./TemplateStack";
+import { StackFrame, TemplateStack } from "./TemplateStack";
 
 export type WheelCategory = {
   slug: string;
@@ -27,6 +27,17 @@ const RADIUS = (FONT_REM * SPACING * 16) / ((TILT_DEG * Math.PI) / 180);
 /** Gap between the dial line and the names. */
 const DIAL_GAP = 22;
 
+/** Entrance, played once the section is well into view: wheel, then deck. */
+const SINE = [0.37, 0, 0.63, 1] as const;
+const wheelIn: Variants = {
+  hidden: { opacity: 0, x: -48 },
+  shown: { opacity: 1, x: 0, transition: { duration: 1.2, ease: SINE } },
+};
+const deckIn: Variants = {
+  hidden: { opacity: 0, y: 56, scale: 0.97 },
+  shown: { opacity: 1, y: 0, scale: 1, transition: { duration: 1.3, ease: SINE, delay: 0.3 } },
+};
+
 /**
  * Industry picker: a React Bits OptionWheel of categories (scroll, drag,
  * click or arrow keys) beside the selected category's templates.
@@ -36,9 +47,17 @@ export function CategoryWheel({ categories }: { categories: WheelCategory[] }) {
   const c = categories[index];
 
   return (
-    <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-14">
+    <motion.div
+      className="grid items-center gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-14"
+      initial="hidden"
+      whileInView="shown"
+      viewport={{ once: true, amount: 0.4 }}
+    >
       {/* The mask melts the names and the dial into the page at the top and bottom. */}
-      <div className="relative h-[260px] [mask-image:linear-gradient(to_bottom,transparent,black_16%,black_84%,transparent)] sm:h-[340px] lg:h-[520px]">
+      <motion.div
+        data-build
+        variants={wheelIn}
+        className="relative h-[260px] [mask-image:linear-gradient(to_bottom,transparent,black_16%,black_84%,transparent)] sm:h-[340px] lg:h-[520px]">
         {/* Dial: an arc concentric with the path the names travel on, plus a
             marker at the selected position, so the wheel reads as an object. */}
         <span
@@ -77,9 +96,9 @@ export function CategoryWheel({ categories }: { categories: WheelCategory[] }) {
           onChange={(i) => setIndex(i)}
           className="tracking-[-0.03em] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
         />
-      </div>
+      </motion.div>
 
-      <div aria-live="polite">
+      <motion.div data-build variants={deckIn} aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={c.slug}
@@ -91,25 +110,30 @@ export function CategoryWheel({ categories }: { categories: WheelCategory[] }) {
             {c.live ? (
               <TemplateStack items={c.templates} label={c.name} />
             ) : (
-              <div className="rounded-xl border border-dashed border-line-strong px-6 py-16 sm:px-10">
-                <p className="text-[17px] font-medium">{c.name} templates are still being designed.</p>
-                <p className="mt-1 text-[15px] text-muted">{c.description}</p>
-                <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
-                  Need a {c.name.toLowerCase()} site sooner? We can design one from scratch or adapt a live template.
-                </p>
-                <a
-                  href={c.askHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-8 inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
-                >
-                  Ask about {c.name} <ArrowRight className="size-4" aria-hidden="true" />
-                </a>
-              </div>
+              <StackFrame
+                action={
+                  <a
+                    href={c.askHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
+                  >
+                    Ask about {c.name} <ArrowRight className="size-4" aria-hidden="true" />
+                  </a>
+                }
+              >
+                <div className="flex h-full flex-col justify-center overflow-hidden rounded-xl border border-dashed border-line-strong px-6 sm:px-10">
+                  <p className="text-[17px] font-medium">{c.name} templates are still being designed.</p>
+                  <p className="mt-1 text-[15px] text-muted">{c.description}</p>
+                  <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
+                    Need a {c.name.toLowerCase()} site sooner? We can design one from scratch or adapt a live template.
+                  </p>
+                </div>
+              </StackFrame>
             )}
           </motion.div>
         </AnimatePresence>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -247,7 +247,7 @@ const MEDIA_RIM = 'inset 0 0 0 1px var(--swap-media-edge)';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const stackBounds = ({
+export const stackBounds = ({
   width,
   height,
   cardDistance,

@@ -1,15 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import CardSwap, { Card } from "@/components/reactbits/CardSwap";
+import CardSwap, { Card, stackBounds } from "@/components/reactbits/CardSwap";
 import type { TemplateCardData } from "@/lib/types";
 
 const W = 560;
 const IMG_H = Math.round((W * 10) / 16);
 const H = IMG_H + 38;
+
+const DECK = {
+  cardDistance: 54,
+  verticalDistance: 40,
+  depth: 80,
+  skewAmount: 0,
+  hoverSpread: 0.05,
+} as const;
+const MAX_VISIBLE = 4;
+
+/** The footprint of a full four-card deck. Every category gets this frame. */
+const FRAME = stackBounds({ width: W, height: H, ...DECK, visible: MAX_VISIBLE });
+
+/**
+ * A deck-sized box with an action row under it. Categories with fewer cards
+ * (or none yet) keep the same height, so the section never jumps.
+ */
+export function StackFrame({ children, action }: { children: ReactNode; action: ReactNode }) {
+  return (
+    <div>
+      <div
+        className="relative mx-auto w-full"
+        style={{ maxWidth: FRAME.width, aspectRatio: `${FRAME.width} / ${FRAME.height}` }}
+      >
+        <div className="absolute inset-0">{children}</div>
+      </div>
+      <div className="mt-8 flex justify-center">{action}</div>
+    </div>
+  );
+}
 
 /**
  * A category's templates as a React Bits CardSwap deck. Drag the front card
@@ -21,23 +51,30 @@ export function TemplateStack({ items, label }: { items: TemplateCardData[]; lab
   const t = items[front] ?? items[0];
 
   return (
-    <div>
+    <StackFrame
+      action={
+        <Link
+          href={`/t/${t.slug}`}
+          prefetch
+          aria-label={`Open template: ${t.name}`}
+          className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
+        >
+          Open template <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      }
+    >
       <CardSwap
         width={W}
         height={H}
         theme="light"
         label={`${label} templates`}
-        cardDistance={54}
-        verticalDistance={40}
-        depth={80}
-        skewAmount={0}
-        visibleCards={Math.min(4, items.length)}
+        {...DECK}
+        visibleCards={Math.min(MAX_VISIBLE, items.length)}
         cardRadius={14}
         delay={4000}
         speed={0.75}
         bounce={0.35}
         parallax={0.1}
-        hoverSpread={0.05}
         dim={0.95}
         autoplay={false}
         pauseOnHover
@@ -72,17 +109,6 @@ export function TemplateStack({ items, label }: { items: TemplateCardData[]; lab
           </Card>
         ))}
       </CardSwap>
-
-      <div className="mt-8 flex justify-center">
-        <Link
-          href={`/t/${t.slug}`}
-          prefetch
-          aria-label={`Open template: ${t.name}`}
-          className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-[15px] font-medium text-paper transition-colors hover:bg-ink-2"
-        >
-          Open template <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </div>
-    </div>
+    </StackFrame>
   );
 }
