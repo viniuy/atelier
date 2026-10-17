@@ -14,8 +14,9 @@ import {
 } from "@/components/gallery/Build";
 import { LaunchStory } from "@/components/gallery/LaunchStory";
 import { MorphField } from "@/components/gallery/MorphField";
-import { HeroHalftone } from "@/components/gallery/HeroHalftone";
 import { showcase } from "@/data/showcase";
+
+const TAGLINE = "Website library";
 
 const steps = [
   {
@@ -50,6 +51,8 @@ export default function HomePage() {
       >
         <LaunchStory
           steps={steps}
+          wordmark={site.name}
+          tagline={TAGLINE}
           title={
             <h2
               id="process-title"
@@ -61,32 +64,6 @@ export default function HomePage() {
         />
       </BandReveal>
 
-      {/* The story ends through the porthole in this same colour, then
-          glides down to here. */}
-      <section
-        id="hero"
-        className="relative flex min-h-[calc(100svh-3.5rem)] scroll-mt-14 flex-col items-center justify-center bg-[#120f17] px-4 text-center text-[#f4f1ea]"
-      >
-        <h1
-          data-morph="word"
-          data-morph-rest="hide"
-          data-morph-color="#f4f1ea"
-          className="relative text-[clamp(5.5rem,22vw,16rem)] leading-none font-bold tracking-[-0.06em] transition-colors duration-500"
-        >
-          {site.name}
-          <HeroHalftone />
-        </h1>
-        <p className="relative z-10 mt-6 text-[13px] tracking-[0.32em] text-[#f4f1ea]/60 uppercase sm:text-[14px]">
-          Website library
-        </p>
-        <Link
-          href="#templates"
-          className="absolute bottom-8 flex flex-col items-center gap-3 text-[12px] tracking-[0.2em] text-[#f4f1ea]/60 uppercase transition-colors hover:text-[#f4f1ea]"
-        >
-          Scroll
-          <span className="h-10 w-px bg-[#f4f1ea]/30" aria-hidden="true" />
-        </Link>
-      </section>
 
       <section aria-labelledby="library-title">
         <BuildRule />
@@ -96,14 +73,14 @@ export default function HomePage() {
             className="max-w-5xl text-[clamp(2.75rem,7.4vw,6.5rem)] leading-[0.98] font-semibold tracking-[-0.045em] text-balance"
           >
             <RiseText>
-              Show a client their{" "}
+              See your{" "}
               <span
                 data-morph="word"
                 className="transition-colors duration-500"
               >
                 website
               </span>{" "}
-              before you build it.
+              before we build it.
             </RiseText>
           </h2>
           <FadeUp
@@ -111,9 +88,9 @@ export default function HomePage() {
             className="mt-14 grid gap-10 md:grid-cols-[1fr_auto] md:items-end"
           >
             <p className="max-w-xl text-[19px] leading-relaxed text-muted">
-              Complete website templates for local businesses, sorted by
-              industry. Open one, click around as if it were live, and when a
-              client says &ldquo;that one&rdquo;, we build their site on it.
+              Complete websites for local businesses, sorted by industry. Open
+              one, click around as if it were already yours, and when you find
+              &ldquo;the one&rdquo;, we build your site on it.
             </p>
             <div className="flex flex-wrap items-center gap-x-7 gap-y-4">
               <Link
@@ -149,18 +126,16 @@ export default function HomePage() {
           <h2 id="templates-title" className="sr-only">
             Templates by industry
           </h2>
-          <FadeUp delay={0.25}>
-            <CategoryWheel
-              categories={categories.map((c) => ({
-                slug: c.slug,
-                name: c.name,
-                description: c.description,
-                live: c.status === "live" && (counts[c.slug] ?? 0) > 0,
-                templates: getTemplatesByCategory(c.slug).map(toCardData),
-                askHref: contactHrefForCategory(c.name),
-              }))}
-            />
-          </FadeUp>
+          <CategoryWheel
+            categories={categories.map((c) => ({
+              slug: c.slug,
+              name: c.name,
+              description: c.description,
+              live: c.status === "live" && (counts[c.slug] ?? 0) > 0,
+              templates: getTemplatesByCategory(c.slug).map(toCardData),
+              askHref: contactHrefForCategory(c.name),
+            }))}
+          />
         </div>
       </section>
 

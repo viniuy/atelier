@@ -31,6 +31,8 @@ export interface HalftoneRevealProps {
   wander?: boolean;
   clickBurst?: boolean;
   intro?: boolean;
+  /** Atelier patch: called once, when the intro starts playing. */
+  onIntro?: () => void;
   className?: string;
   style?: CSSProperties;
 }
@@ -441,6 +443,7 @@ const HalftoneReveal = ({
   wander = false,
   clickBurst = true,
   intro = true,
+  onIntro,
   className = '',
   style
 }: HalftoneRevealProps) => {
@@ -472,6 +475,8 @@ const HalftoneReveal = ({
   };
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const onIntroRef = useRef(onIntro);
+  onIntroRef.current = onIntro;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -590,7 +595,9 @@ const HalftoneReveal = ({
     };
     let raf = 0;
     let last = 0;
-    let visible = true;
+    // Atelier patch: start hidden; the IntersectionObserver reports the real
+    // state right away, and the intro waits for the first time it's seen.
+    let visible = false;
     let alive = true;
 
     const toRgb = (value: string): number[] => {
@@ -665,7 +672,7 @@ const HalftoneReveal = ({
     const drawView = (s: Settings, now: number) => {
       const [fx, fy, fw, fh] = frameRect(s);
       const image = state.image;
-      const intro = !image ? 0 : !s.intro || reduce ? 1 : Math.min(1, (now - state.introStart) / 1000 / INTRO_SECONDS);
+      const intro = !image ? 0 : !s.intro || reduce ? 1 : Math.max(0, Math.min(1, (now - state.introStart) / 1000 / INTRO_SECONDS));
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.useProgram(viewProgram);
       gl.activeTexture(gl.TEXTURE0);
@@ -785,7 +792,9 @@ const HalftoneReveal = ({
         }
       }
       state.image = image;
-      state.introStart = performance.now();
+      // Atelier patch: if it's off screen, hold the intro until it's seen.
+      state.introStart = visible ? performance.now() : Infinity;
+      if (visible) onIntroRef.current?.();
       wake();
     };
     image.src = src;
@@ -830,6 +839,10 @@ const HalftoneReveal = ({
     const intersection = new IntersectionObserver(entries => {
       visible = entries.some(entry => entry.isIntersecting);
       if (visible) {
+        if (state.image && state.introStart === Infinity) {
+          state.introStart = performance.now();
+          onIntroRef.current?.();
+        }
         last = 0;
         wake();
       }

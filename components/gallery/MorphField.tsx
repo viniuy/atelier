@@ -282,15 +282,19 @@ export function MorphField() {
     let localOn = false;
     // Word anchors whose real text is currently hidden behind particles.
     const hidden = new Set<HTMLElement>();
+    // Word anchors the particles have reached at least once.
+    const visited = new Set<HTMLElement>();
     /**
-     * The real text stays in the DOM for screen readers and search. It's
-     * hidden only while the particles are sitting on it, and fades back in
-     * as soon as they leave, so a sentence never reads with a gap.
+     * The real text stays in the DOM for screen readers and search. A word
+     * the particles haven't reached yet is an empty slot, so they're seen
+     * writing it in; it's hidden while they sit on it, and once they've moved
+     * on it fades back in, so the sentence doesn't keep a gap.
      */
     function syncWords(covered: number) {
       anchors.forEach((a, j) => {
         if (a.shape !== "word") return;
-        const hide = j === covered;
+        if (j === covered) visited.add(a.el);
+        const hide = j === covered || (j > covered && !visited.has(a.el));
         if (hide === hidden.has(a.el)) return;
         a.el.style.color = hide ? "transparent" : "";
         if (hide) hidden.add(a.el);
@@ -355,13 +359,15 @@ export function MorphField() {
       // That moment is expressed as where the next anchor sits then.
       // Later morphs start as their anchor scrolls in.
       const headerH = document.querySelector("header")?.getBoundingClientRect().bottom ?? 56;
-      const enterAt = (i: number) =>
-        Math.max(
-          settle + 1,
-          i === 1 && anchors[0].restHidden
-            ? centers[1] - rects[0].top + headerH
-            : Math.min(vh * 0.95, centers[i] + sy - 40),
-        );
+      // The hero rule only ever delays a morph: when something long sits
+      // between the hero and the next anchor (the launch story), the
+      // particles wait for that anchor to scroll in rather than drifting
+      // across everything in between.
+      const enterAt = (i: number) => {
+        const scrollIn = Math.min(vh * 0.95, centers[i] + sy - 40);
+        const heroLeaves = centers[1] - rects[0].top + headerH;
+        return Math.max(settle + 1, i === 1 && anchors[0].restHidden ? Math.min(heroLeaves, scrollIn) : scrollIn);
+      };
       let k = 0;
       for (let i = 0; i < anchors.length; i++) if (centers[i] < enterAt(i)) k = i;
       let from = k;

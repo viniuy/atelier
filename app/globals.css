@@ -88,6 +88,16 @@ summary::-webkit-details-marker {
 }
 
 /* Rocket flame flicker (LaunchStory). Disabled by the reduced-motion rule. */
+@keyframes atelier-beacon {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @keyframes atelier-flicker {
   from {
     transform: scaleY(0.82) scaleX(0.96);

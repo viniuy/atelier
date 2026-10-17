@@ -18,22 +18,15 @@ export function HeroHalftone({ paper = "#120f17", ink = "#f4f1ea" }: { paper?: s
   // Dot size follows the word size: 6px (as specified) on desktop, finer on
   // phones so the small word stays readable.
   const [cell, setCell] = useState(6);
-  // Mount the halftone the first time it comes into view, so its intro
-  // plays where you can see it (the hero sits below the launch story).
-  const [seen, setSeen] = useState(false);
-
-  useEffect(() => {
-    const box = boxRef.current;
-    if (!box) return;
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) {
-        setSeen(true);
-        io.disconnect();
-      }
-    }, { threshold: 0.35 });
-    io.observe(box);
-    return () => io.disconnect();
-  }, []);
+  // Mounted up front (its WebGL set-up would stall a scroll if done on
+  // arrival); the vendored component holds the intro until it's first seen.
+  // Until then the crisp word shows, and it fades as the dots print in.
+  // Afterwards the parent can bring the crisp word back with --crisp (0..1),
+  // e.g. while it moves the word over other things: the halftone prints on
+  // solid paper, which would show as a box.
+  const [printing, setPrinting] = useState(false);
+  const [printed, setPrinted] = useState(false);
+  const [word, setWord] = useState("");
 
   useEffect(() => {
     const box = boxRef.current;
@@ -42,7 +35,8 @@ export function HeroHalftone({ paper = "#120f17", ink = "#f4f1ea" }: { paper?: s
     let cancelled = false;
 
     const draw = () => {
-      const r = box.getBoundingClientRect();
+      // Layout size (ignores transforms: the story scales the wordmark).
+      const r = { width: box.offsetWidth, height: box.offsetHeight };
       if (r.width < 10 || r.height < 10) return;
       const scale = 2;
       const c = document.createElement("canvas");
@@ -51,6 +45,7 @@ export function HeroHalftone({ paper = "#120f17", ink = "#f4f1ea" }: { paper?: s
       const ctx = c.getContext("2d");
       if (!ctx) return;
       const cs = getComputedStyle(h1);
+      setWord(h1.textContent?.trim() ?? "");
       ctx.fillStyle = paper;
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.scale(scale, scale);
@@ -58,8 +53,15 @@ export function HeroHalftone({ paper = "#120f17", ink = "#f4f1ea" }: { paper?: s
       if ("letterSpacing" in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = cs.letterSpacing;
       ctx.fillStyle = ink;
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(h1.textContent?.trim() ?? "", r.width / 2, r.height / 2 + parseFloat(cs.fontSize) * 0.04);
+      // Sit the word on the same baseline as the real text: the h1 is one
+      // line box centred in this box, with the font's ascent and descent
+      // centred in that line (CSS half-leading).
+      const text = h1.textContent?.trim() ?? "";
+      const m = ctx.measureText(text);
+      const line = h1.offsetHeight;
+      const baseline = (r.height - line) / 2 + (line - m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2 + m.fontBoundingBoxAscent;
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(text, r.width / 2, baseline);
       if (cancelled) return;
       setCell(Math.min(6, Math.max(3.5, parseFloat(cs.fontSize) / 30)));
       setSrc(c.toDataURL("image/png"));
@@ -83,13 +85,22 @@ export function HeroHalftone({ paper = "#120f17", ink = "#f4f1ea" }: { paper?: s
   }, [paper, ink]);
 
   return (
+    <>
+    {/* Drawn as generated content, so the h1's text (read by the halftone
+        and the particles) stays the word once. */}
+    <span
+      aria-hidden="true"
+      data-word={word}
+      className={`pointer-events-none absolute inset-0 z-10 before:content-[attr(data-word)] ${printed ? "" : "transition-opacity duration-[1200ms] ease-[cubic-bezier(0.37,0,0.63,1)]"}`}
+      style={{ color: ink, opacity: printing ? "calc(var(--crisp, 0) * (1 - var(--morph-leave, 0) * 6))" : "calc(1 - var(--morph-leave, 0) * 6)" }}
+    />
     <div
       ref={boxRef}
       aria-hidden="true"
       className="absolute -inset-x-[8%] -inset-y-[14%] transition-opacity duration-150"
-      style={{ opacity: "calc(1 - var(--morph-leave, 0) * 6)" }}
+      style={{ opacity: "calc((1 - var(--morph-leave, 0) * 6) * (1 - var(--crisp, 0)))" }}
     >
-      {src && seen && (
+      {src && (
         <HalftoneReveal
           src={src}
           mode="mono"
@@ -113,8 +124,13 @@ export function HeroHalftone({ paper = "#120f17", ink = "#f4f1ea" }: { paper?: s
           wander={false}
           clickBurst
           intro
+          onIntro={() => {
+            setPrinting(true);
+            setTimeout(() => setPrinted(true), 1300);
+          }}
         />
       )}
     </div>
+    </>
   );
 }
