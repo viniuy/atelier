@@ -22,9 +22,9 @@ export const site = {
     /** Which channel the "I like this one" CTA opens. */
     method: "messenger" as ContactMethod,
     /** Used when method is "mailto" (and shown in the footer). */
-    email: "hello@atelier.example",
+    email: "vincent.enolpe@gmail.com",
     /** Facebook Page or profile username → https://m.me/<messenger> */
-    messenger: "atelierwebstudio",
+    messenger: "Vincent",
     /** Message prefilled into the email body / Messenger chat. */
     message: (template: { name: string; previewUrl: string }) =>
       `Hi! I like the "${template.name}" template. Can you build my website based on it?\n\nPreview: ${template.previewUrl}\n\nMy business name:\nWhat I do:\nBest number to reach me:`,
